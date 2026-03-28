@@ -1,0 +1,32 @@
+@preset flowchart
+@layout direction=TB spacing=60
+
+node start "Start" {
+    shape: rounded_rect
+    style: { fill: "#4CAF50", stroke: "#388E3C" }
+}
+
+node fetch "Fetch Data"
+node validate "Validate"
+
+node ok "Valid?" {
+    shape: diamond
+}
+
+node save "Save" {
+    style: { fill: "#2196F3", stroke: "#1565C0" }
+}
+
+node error "Handle Error" {
+    style: { fill: "#F44336", stroke: "#D32F2F" }
+}
+
+edge start -> fetch
+edge fetch -> validate
+edge validate -> ok
+edge ok -> save {
+    label: "yes"
+}
+edge ok -> error {
+    label: "no"
+}

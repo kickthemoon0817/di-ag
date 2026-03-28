@@ -1,0 +1,45 @@
+@preset freeform
+@layout direction=TB spacing=80
+
+container frontend "Frontend" {
+    node web "Web App" {
+        shape: rect
+        style: { fill: "#E3F2FD", stroke: "#1976D2" }
+    }
+    node mobile "Mobile App" {
+        shape: rect
+        style: { fill: "#E3F2FD", stroke: "#1976D2" }
+    }
+}
+
+container backend "Backend Services" {
+    node api "API Gateway" {
+        shape: rect
+        style: { fill: "#E8F5E9", stroke: "#388E3C" }
+    }
+    node auth "Auth Service" {
+        style: { fill: "#FFF3E0", stroke: "#F57C00" }
+    }
+    node worker "Worker" {
+        style: { fill: "#FFF3E0", stroke: "#F57C00" }
+    }
+}
+
+container data "Data Layer" {
+    node db "PostgreSQL" {
+        shape: cylinder
+        style: { fill: "#FCE4EC", stroke: "#C62828" }
+    }
+    node cache "Redis" {
+        shape: cylinder
+        style: { fill: "#FCE4EC", stroke: "#C62828" }
+    }
+}
+
+edge web -> api
+edge mobile -> api
+edge api -> auth
+edge api -> worker
+edge auth -> db
+edge worker -> db
+edge api -> cache
