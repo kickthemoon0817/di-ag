@@ -1,0 +1,68 @@
+// Whitespace and comments
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+NEWLINE = _{ "\r\n" | "\n" | "\r" }
+
+// Primitives
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
+quoted_string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+color_hex = @{ "\"#" ~ ASCII_HEX_DIGIT+ ~ "\"" }
+
+// Values
+value = { color_hex | quoted_string | number | variable_ref | identifier }
+variable_ref = @{ "$" ~ identifier }
+
+// Directives
+directive = { "@" ~ directive_type }
+directive_type = _{ preset_directive | theme_directive | layout_directive }
+preset_directive = { "preset" ~ identifier }
+theme_directive = { "theme" ~ identifier }
+layout_directive = { "layout" ~ key_value_pair+ }
+key_value_pair = { identifier ~ "=" ~ value }
+
+// Nodes
+node_stmt = { "node" ~ identifier ~ quoted_string? ~ node_block? }
+node_block = { "{" ~ NEWLINE* ~ node_property* ~ "}" }
+node_property = { (shape_prop | size_prop | style_prop | port_prop | icon_prop) ~ NEWLINE* }
+shape_prop = { "shape" ~ ":" ~ identifier }
+size_prop = { "size" ~ ":" ~ number ~ "x" ~ number }
+style_prop = { "style" ~ ":" ~ style_block }
+port_prop = { "port" ~ ":" ~ port_list }
+icon_prop = { "icon" ~ ":" ~ identifier }
+
+// Style blocks
+style_block = { "{" ~ style_entry ~ ("," ~ style_entry)* ~ ","? ~ "}" }
+style_entry = { identifier ~ ":" ~ value }
+
+// Port lists
+port_list = { "[" ~ identifier ~ ("," ~ identifier)* ~ "]" }
+
+// Edges
+edge_stmt = { "edge" ~ identifier ~ "->" ~ identifier ~ edge_block? }
+edge_block = { "{" ~ NEWLINE* ~ edge_property* ~ "}" }
+edge_property = { (label_prop | route_prop | style_prop | waypoints_prop) ~ NEWLINE* }
+label_prop = { "label" ~ ":" ~ quoted_string }
+route_prop = { "route" ~ ":" ~ identifier }
+waypoints_prop = { "waypoints" ~ ":" ~ waypoint_list }
+waypoint_list = { "[" ~ waypoint ~ ("," ~ waypoint)* ~ "]" }
+waypoint = { "(" ~ number ~ "," ~ number ~ ")" }
+
+// Containers
+container_stmt = { "container" ~ identifier ~ quoted_string? ~ container_block }
+container_block = { "{" ~ NEWLINE* ~ container_body* ~ "}" }
+container_body = { (style_prop | layout_prop | node_stmt | edge_stmt | container_stmt | align_stmt | distribute_stmt) ~ NEWLINE* }
+layout_prop = { "layout" ~ ":" ~ identifier }
+
+// Layout directives
+align_stmt = { "align" ~ identifier ~ id_list }
+distribute_stmt = { "distribute" ~ identifier ~ id_list ~ gap_clause? }
+id_list = { "[" ~ identifier ~ ("," ~ identifier)* ~ "]" }
+gap_clause = { "gap" ~ "=" ~ number }
+
+// Variables
+let_stmt = { "let" ~ identifier ~ "=" ~ (style_block | value) }
+
+// Top-level
+statement = _{ directive | container_stmt | node_stmt | edge_stmt | let_stmt | align_stmt | distribute_stmt }
+document = { SOI ~ (NEWLINE | statement)* ~ EOI }
