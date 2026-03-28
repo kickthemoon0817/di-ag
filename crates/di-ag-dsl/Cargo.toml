@@ -1,0 +1,10 @@
+[package]
+name = "di-ag-dsl"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+di-ag-ir = { path = "../di-ag-ir" }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+thiserror = { workspace = true }
