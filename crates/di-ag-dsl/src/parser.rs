@@ -60,6 +60,11 @@ pub fn parse_dsl(input: &str) -> Result<Document, ParseError> {
                     Rule::let_stmt => {
                         parse_let(inner, &mut ctx)?;
                     }
+                    Rule::repeat_stmt => {
+                        let (nodes, edges) = parse_repeat(inner, &ctx, doc.edges.len())?;
+                        doc.nodes.extend(nodes);
+                        doc.edges.extend(edges);
+                    }
                     Rule::align_stmt | Rule::distribute_stmt => {
                         // Layout directives stored for layout engine — no-op in parsing
                     }
@@ -366,6 +371,52 @@ fn parse_container(
     };
 
     Ok((node, edges))
+}
+
+fn parse_repeat(
+    pair: pest::iterators::Pair<Rule>,
+    ctx: &ParseContext,
+    edge_offset: usize,
+) -> Result<(Vec<di_ag_ir::Node>, Vec<di_ag_ir::Edge>), ParseError> {
+    let mut inner = pair.into_inner();
+    let count_str = inner.next().unwrap().as_str();
+    let count: usize = count_str
+        .parse()
+        .map_err(|_| ParseError::InvalidNumber(count_str.into()))?;
+    let var_name = inner.next().unwrap().as_str().to_string();
+    let raw_block = inner.next().unwrap().as_str(); // repeat_raw_block
+
+    // Strip surrounding braces
+    let body = raw_block
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or(raw_block)
+        .trim();
+
+    let mut nodes = vec![];
+    let mut edges = vec![];
+    let mut edge_count = edge_offset;
+
+    for i in 0..count {
+        let idx = i.to_string();
+        // Substitute ${var_name} and $var_name with the index
+        let expanded = body
+            .replace(&format!("${{{}}}", var_name), &idx)
+            .replace(&format!("${}", var_name), &idx);
+
+        // Parse expanded text as a mini-document
+        let mini_doc = crate::parser::parse_dsl(&expanded)
+            .map_err(|e| ParseError::Grammar(format!("In repeat iteration {}: {}", i, e)))?;
+
+        nodes.extend(mini_doc.nodes);
+        for mut edge in mini_doc.edges {
+            edge.id = format!("e{}", edge_count);
+            edges.push(edge);
+            edge_count += 1;
+        }
+    }
+
+    Ok((nodes, edges))
 }
 
 fn parse_let(

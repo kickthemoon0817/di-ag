@@ -63,6 +63,12 @@ gap_clause = { "gap" ~ "=" ~ number }
 // Variables
 let_stmt = { "let" ~ identifier ~ "=" ~ (style_block | value) }
 
+// Repeat blocks — body is captured as raw text for variable substitution before re-parsing
+repeat_stmt = { "repeat" ~ number ~ "as" ~ identifier ~ repeat_raw_block }
+repeat_raw_block = @{ "{" ~ repeat_raw_inner ~ "}" }
+repeat_raw_inner = @{ (repeat_nested_brace | (!"}" ~ ANY))* }
+repeat_nested_brace = @{ "{" ~ (!"}" ~ ANY)* ~ "}" }
+
 // Top-level
-statement = _{ directive | container_stmt | node_stmt | edge_stmt | let_stmt | align_stmt | distribute_stmt }
+statement = _{ directive | container_stmt | repeat_stmt | node_stmt | edge_stmt | let_stmt | align_stmt | distribute_stmt }
 document = { SOI ~ (NEWLINE | statement)* ~ EOI }
