@@ -1,0 +1,18 @@
+[package]
+name = "di-ag-wasm"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+di-ag-ir = { path = "../di-ag-ir" }
+di-ag-dsl = { path = "../di-ag-dsl" }
+di-ag-layout = { path = "../di-ag-layout" }
+di-ag-render = { path = "../di-ag-render" }
+di-ag-validate = { path = "../di-ag-validate" }
+di-ag-inspect = { path = "../di-ag-inspect" }
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+serde_json = { workspace = true }
