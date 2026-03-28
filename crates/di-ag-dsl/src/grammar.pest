@@ -69,6 +69,22 @@ repeat_raw_block = @{ "{" ~ repeat_raw_inner ~ "}" }
 repeat_raw_inner = @{ (repeat_nested_brace | (!"}" ~ ANY))* }
 repeat_nested_brace = @{ "{" ~ (!"}" ~ ANY)* ~ "}" }
 
+// Shorthand nodes: [Label], {Label}, (Label)
+shorthand_rect = { "[" ~ shorthand_label_sq ~ "]" }
+shorthand_diamond = { "{" ~ shorthand_label_cb ~ "}" }
+shorthand_rounded = { "(" ~ shorthand_label_rn ~ ")" }
+shorthand_node = _{ shorthand_rect | shorthand_diamond | shorthand_rounded }
+shorthand_label_sq = @{ (!"]" ~ ANY)+ }
+shorthand_label_cb = @{ (!"}" ~ ANY)+ }
+shorthand_label_rn = @{ (!")" ~ ANY)+ }
+
+// Inline chain: [A] --> [B] --label--> {C}
+chain_arrow = { "--" ~ chain_label ~ "-->" }
+chain_label = @{ (!"-" ~ ANY)+ }
+simple_arrow = { "-->" }
+chain_connector = _{ simple_arrow | chain_arrow }
+chain_stmt = { shorthand_node ~ (chain_connector ~ shorthand_node)+ }
+
 // Top-level
-statement = _{ directive | container_stmt | repeat_stmt | node_stmt | edge_stmt | let_stmt | align_stmt | distribute_stmt }
+statement = _{ directive | container_stmt | repeat_stmt | chain_stmt | node_stmt | edge_stmt | let_stmt | align_stmt | distribute_stmt }
 document = { SOI ~ (NEWLINE | statement)* ~ EOI }

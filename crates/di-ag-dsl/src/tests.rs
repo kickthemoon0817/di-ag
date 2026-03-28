@@ -185,6 +185,42 @@ repeat 3 as i {
     }
 
     #[test]
+    fn test_parse_chain_shorthand() {
+        let input = r#"[Start] --> [Process] --> [End]"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes.len(), 3);
+        assert_eq!(doc.nodes[0].id, "start");
+        assert_eq!(doc.nodes[0].label, "Start");
+        assert_eq!(doc.nodes[0].shape, Shape::Rect);
+        assert_eq!(doc.nodes[1].id, "process");
+        assert_eq!(doc.nodes[2].id, "end");
+        assert_eq!(doc.edges.len(), 2);
+        assert_eq!(doc.edges[0].source, "start");
+        assert_eq!(doc.edges[0].target, "process");
+        assert_eq!(doc.edges[1].source, "process");
+        assert_eq!(doc.edges[1].target, "end");
+    }
+
+    #[test]
+    fn test_parse_chain_with_shapes() {
+        let input = r#"[Input] --> {Decision} --> (Done)"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes[0].shape, Shape::Rect);
+        assert_eq!(doc.nodes[1].shape, Shape::Diamond);
+        assert_eq!(doc.nodes[1].label, "Decision");
+        assert_eq!(doc.nodes[2].shape, Shape::RoundedRect);
+        assert_eq!(doc.nodes[2].label, "Done");
+    }
+
+    #[test]
+    fn test_parse_chain_with_labels() {
+        let input = r#"[A] --yes--> [B] --no--> [C]"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.edges[0].label, Some("yes".into()));
+        assert_eq!(doc.edges[1].label, Some("no".into()));
+    }
+
+    #[test]
     fn test_parse_repeat_with_braces() {
         let input = r#"
 repeat 2 as idx {
