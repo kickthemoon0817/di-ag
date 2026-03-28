@@ -1,10 +1,18 @@
 use di_ag_ir::*;
 
 use crate::shapes::{render_shape, ShapeAttrs};
-use crate::theme::{light_theme, Theme};
+use crate::theme::{get_theme, Theme};
 
 pub fn build_svg(doc: &Document) -> String {
-    let theme = light_theme();
+    build_svg_with_theme(doc, None)
+}
+
+pub fn build_svg_with_theme(doc: &Document, theme_name: Option<&str>) -> String {
+    let preset_theme = doc
+        .preset
+        .as_ref()
+        .and_then(|p| p.theme.as_deref());
+    let theme = get_theme(theme_name.or(preset_theme).unwrap_or("light"));
     let (min_x, min_y, max_x, max_y) = compute_viewbox(doc);
     let padding = 40.0;
     let width = max_x - min_x + padding * 2.0;
