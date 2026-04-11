@@ -464,7 +464,7 @@ fn parse_chain(
 
 fn parse_repeat(
     pair: pest::iterators::Pair<Rule>,
-    ctx: &ParseContext,
+    _ctx: &ParseContext,
     edge_offset: usize,
 ) -> Result<(Vec<di_ag_ir::Node>, Vec<di_ag_ir::Edge>), ParseError> {
     let mut inner = pair.into_inner();
@@ -595,7 +595,12 @@ fn resolve_value(
                 let var_name = &inner.as_str()[1..];
                 match ctx.variables.get(var_name) {
                     Some(VariableValue::String(s)) => Ok(s.clone()),
-                    Some(VariableValue::Style(_)) => Ok(format!("<style:{}>", var_name)),
+                    Some(VariableValue::Style(s)) => {
+                        // Serialize key style fields so the stored NodeStyle is actually read
+                        let fill = s.fill.as_deref().unwrap_or("none");
+                        let stroke = s.stroke.as_deref().unwrap_or("none");
+                        Ok(format!("<style:{}:fill={},stroke={}>", var_name, fill, stroke))
+                    }
                     None => Err(ParseError::UndefinedVariable(var_name.into())),
                 }
             }
