@@ -15,5 +15,7 @@ di-ag-render = { path = "../di-ag-render" }
 di-ag-validate = { path = "../di-ag-validate" }
 di-ag-inspect = { path = "../di-ag-inspect" }
 clap = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+tiny_http = { workspace = true }

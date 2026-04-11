@@ -2,6 +2,7 @@ pub mod convert;
 pub mod fmt;
 pub mod init;
 pub mod render;
+pub mod serve;
 pub mod validate;
 
 use std::io::Read;
