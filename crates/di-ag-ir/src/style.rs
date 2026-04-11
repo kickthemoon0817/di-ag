@@ -18,9 +18,10 @@ pub struct Waypoint {
     pub y: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Shape {
+    #[default]
     Rect,
     RoundedRect,
     Diamond,
@@ -32,13 +33,7 @@ pub enum Shape {
     Triangle,
 }
 
-impl Default for Shape {
-    fn default() -> Self {
-        Shape::Rect
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct NodeStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fill: Option<String>,
@@ -58,24 +53,10 @@ pub struct NodeStyle {
     pub opacity: Option<f64>,
 }
 
-impl Default for NodeStyle {
-    fn default() -> Self {
-        NodeStyle {
-            fill: None,
-            stroke: None,
-            stroke_width: None,
-            font_family: None,
-            font_size: None,
-            font_color: None,
-            border_radius: None,
-            opacity: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ArrowHead {
+    #[default]
     Normal,
     Open,
     Diamond,
@@ -83,13 +64,7 @@ pub enum ArrowHead {
     None,
 }
 
-impl Default for ArrowHead {
-    fn default() -> Self {
-        ArrowHead::Normal
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EdgeStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stroke: Option<String>,
@@ -101,16 +76,4 @@ pub struct EdgeStyle {
     pub dash: Option<String>,
     #[serde(default)]
     pub arrow_head: ArrowHead,
-}
-
-impl Default for EdgeStyle {
-    fn default() -> Self {
-        EdgeStyle {
-            stroke: None,
-            stroke_width: None,
-            color: None,
-            dash: None,
-            arrow_head: ArrowHead::default(),
-        }
-    }
 }
