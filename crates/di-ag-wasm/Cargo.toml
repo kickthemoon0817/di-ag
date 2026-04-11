@@ -1,11 +1,10 @@
 [package]
-name = "di-ag"
+name = "di-ag-wasm"
 version.workspace = true
 edition.workspace = true
 
-[[bin]]
-name = "di-ag"
-path = "src/main.rs"
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 di-ag-ir = { path = "../di-ag-ir" }
@@ -14,8 +13,6 @@ di-ag-layout = { path = "../di-ag-layout" }
 di-ag-render = { path = "../di-ag-render" }
 di-ag-validate = { path = "../di-ag-validate" }
 di-ag-inspect = { path = "../di-ag-inspect" }
-clap = { workspace = true }
-serde = { workspace = true }
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-tiny_http = { workspace = true }

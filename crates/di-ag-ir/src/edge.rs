@@ -1,18 +1,13 @@
 use serde::{Deserialize, Serialize};
 use crate::style::{EdgeStyle, Waypoint};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeType {
+    #[default]
     Straight,
     Curved,
     Orthogonal,
-}
-
-impl Default for EdgeType {
-    fn default() -> Self {
-        EdgeType::Straight
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -160,4 +160,77 @@ align horizontal [a, b, c]
         let doc = parse(input).unwrap();
         assert_eq!(doc.nodes.len(), 3);
     }
+
+    #[test]
+    fn test_parse_repeat_block() {
+        let input = r#"
+node lb "Load Balancer"
+
+repeat 3 as i {
+    node worker_$i "Worker $i"
+    edge lb -> worker_$i
+}
+"#;
+        let doc = parse(input).unwrap();
+        // lb + worker_0, worker_1, worker_2
+        assert_eq!(doc.nodes.len(), 4);
+        assert_eq!(doc.nodes[1].id, "worker_0");
+        assert_eq!(doc.nodes[1].label, "Worker 0");
+        assert_eq!(doc.nodes[2].id, "worker_1");
+        assert_eq!(doc.nodes[3].id, "worker_2");
+        assert_eq!(doc.edges.len(), 3);
+        assert_eq!(doc.edges[0].target, "worker_0");
+        assert_eq!(doc.edges[1].target, "worker_1");
+        assert_eq!(doc.edges[2].target, "worker_2");
+    }
+
+    #[test]
+    fn test_parse_chain_shorthand() {
+        let input = r#"[Start] --> [Process] --> [End]"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes.len(), 3);
+        assert_eq!(doc.nodes[0].id, "start");
+        assert_eq!(doc.nodes[0].label, "Start");
+        assert_eq!(doc.nodes[0].shape, Shape::Rect);
+        assert_eq!(doc.nodes[1].id, "process");
+        assert_eq!(doc.nodes[2].id, "end");
+        assert_eq!(doc.edges.len(), 2);
+        assert_eq!(doc.edges[0].source, "start");
+        assert_eq!(doc.edges[0].target, "process");
+        assert_eq!(doc.edges[1].source, "process");
+        assert_eq!(doc.edges[1].target, "end");
+    }
+
+    #[test]
+    fn test_parse_chain_with_shapes() {
+        let input = r#"[Input] --> {Decision} --> (Done)"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes[0].shape, Shape::Rect);
+        assert_eq!(doc.nodes[1].shape, Shape::Diamond);
+        assert_eq!(doc.nodes[1].label, "Decision");
+        assert_eq!(doc.nodes[2].shape, Shape::RoundedRect);
+        assert_eq!(doc.nodes[2].label, "Done");
+    }
+
+    #[test]
+    fn test_parse_chain_with_labels() {
+        let input = r#"[A] --yes--> [B] --no--> [C]"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.edges[0].label, Some("yes".into()));
+        assert_eq!(doc.edges[1].label, Some("no".into()));
+    }
+
+    #[test]
+    fn test_parse_repeat_with_braces() {
+        let input = r#"
+repeat 2 as idx {
+    node svc_${idx} "Service ${idx}"
+}
+"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes.len(), 2);
+        assert_eq!(doc.nodes[0].id, "svc_0");
+        assert_eq!(doc.nodes[0].label, "Service 0");
+        assert_eq!(doc.nodes[1].id, "svc_1");
+    }
 }

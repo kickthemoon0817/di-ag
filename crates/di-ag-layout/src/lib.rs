@@ -1,11 +1,13 @@
+pub mod force;
 pub mod layered;
+pub mod orthogonal;
 pub mod post_pass;
 pub mod scoring;
 
 #[cfg(test)]
 mod tests;
 
-use di_ag_ir::Document;
+use di_ag_ir::{DiagramType, Document};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -16,7 +18,20 @@ pub enum LayoutError {
 
 pub fn layout(mut doc: Document) -> Result<Document, LayoutError> {
     assign_default_sizes(&mut doc.nodes);
-    layered::layout_layered(&mut doc)?;
+
+    // Select layout strategy based on preset
+    let diagram_type = doc
+        .preset
+        .as_ref()
+        .map(|p| p.diagram_type.clone())
+        .unwrap_or(DiagramType::Flowchart);
+
+    match diagram_type {
+        DiagramType::Freeform => force::layout_force_directed(&mut doc)?,
+        DiagramType::Er | DiagramType::Class => orthogonal::layout_orthogonal(&mut doc)?,
+        _ => layered::layout_layered(&mut doc)?,
+    }
+
     post_pass::run_post_passes(&mut doc);
     Ok(doc)
 }

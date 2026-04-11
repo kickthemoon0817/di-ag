@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DiagramType {
+    #[default]
     Flowchart,
     Sequence,
     Er,
@@ -11,25 +12,14 @@ pub enum DiagramType {
     Freeform,
 }
 
-impl Default for DiagramType {
-    fn default() -> Self {
-        DiagramType::Flowchart
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LayoutDirection {
+    #[default]
     TopToBottom,
     BottomToTop,
     LeftToRight,
     RightToLeft,
-}
-
-impl Default for LayoutDirection {
-    fn default() -> Self {
-        LayoutDirection::TopToBottom
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

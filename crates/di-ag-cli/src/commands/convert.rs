@@ -27,6 +27,17 @@ pub fn run(
                 di_ag_layout::layout(doc).map_err(|e| format!("Layout error: {}", e))?;
             di_ag_render::render_svg(&doc).map_err(|e| format!("Render error: {}", e))?
         }
+        "png" => {
+            let doc =
+                di_ag_layout::layout(doc).map_err(|e| format!("Layout error: {}", e))?;
+            let png_data = di_ag_render::render_png(&doc, &di_ag_render::PngOptions::default())
+                .map_err(|e| format!("PNG render error: {}", e))?;
+            let path = output.ok_or("PNG output requires --output flag")?;
+            std::fs::write(path, &png_data)
+                .map_err(|e| format!("Failed to write '{}': {}", path, e))?;
+            eprintln!("Wrote {}", path);
+            return Ok(());
+        }
         other => return Err(format!("Unsupported target format: {}", other)),
     };
 

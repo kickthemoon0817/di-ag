@@ -76,6 +76,15 @@ enum Commands {
     },
     /// Create a starter .diag file
     Init,
+    /// Launch web UI for interactive editing
+    Serve {
+        /// Port number
+        #[arg(long, default_value = "3000")]
+        port: u16,
+        /// Open browser automatically
+        #[arg(long)]
+        open: bool,
+    },
 }
 
 fn main() {
@@ -86,7 +95,7 @@ fn main() {
             input,
             output,
             format,
-            theme: _,
+            theme,
             layout: _,
             inspect,
             score_threshold,
@@ -95,6 +104,7 @@ fn main() {
             &input,
             output.as_deref(),
             &format,
+            theme.as_deref(),
             inspect,
             score_threshold,
             json,
@@ -112,6 +122,7 @@ fn main() {
         } => commands::convert::run(&input, &to, from.as_deref(), output.as_deref()),
         Commands::Fmt { input, check } => commands::fmt::run(&input, check),
         Commands::Init => commands::init::run(),
+        Commands::Serve { port, open } => commands::serve::run(port, open),
     };
 
     if let Err(e) = result {

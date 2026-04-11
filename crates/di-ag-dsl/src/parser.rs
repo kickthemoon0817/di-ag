@@ -60,6 +60,16 @@ pub fn parse_dsl(input: &str) -> Result<Document, ParseError> {
                     Rule::let_stmt => {
                         parse_let(inner, &mut ctx)?;
                     }
+                    Rule::repeat_stmt => {
+                        let (nodes, edges) = parse_repeat(inner, &ctx, doc.edges.len())?;
+                        doc.nodes.extend(nodes);
+                        doc.edges.extend(edges);
+                    }
+                    Rule::chain_stmt => {
+                        let (nodes, edges) = parse_chain(inner, &mut doc)?;
+                        doc.nodes.extend(nodes);
+                        doc.edges.extend(edges);
+                    }
                     Rule::align_stmt | Rule::distribute_stmt => {
                         // Layout directives stored for layout engine — no-op in parsing
                     }
@@ -368,6 +378,136 @@ fn parse_container(
     Ok((node, edges))
 }
 
+fn parse_shorthand_node(pair: pest::iterators::Pair<Rule>) -> (String, String, Shape) {
+    let (shape, label_rule) = match pair.as_rule() {
+        Rule::shorthand_rect => (Shape::Rect, pair.into_inner().next().unwrap()),
+        Rule::shorthand_diamond => (Shape::Diamond, pair.into_inner().next().unwrap()),
+        Rule::shorthand_rounded => (Shape::RoundedRect, pair.into_inner().next().unwrap()),
+        _ => unreachable!("unexpected rule: {:?}", pair.as_rule()),
+    };
+    let label = label_rule.as_str().trim().to_string();
+    // Generate id from label: lowercase, spaces to underscores
+    let id = label
+        .to_lowercase()
+        .replace(' ', "_")
+        .replace(|c: char| !c.is_alphanumeric() && c != '_', "");
+    (id, label, shape)
+}
+
+fn parse_chain(
+    pair: pest::iterators::Pair<Rule>,
+    doc: &mut Document,
+) -> Result<(Vec<di_ag_ir::Node>, Vec<di_ag_ir::Edge>), ParseError> {
+    let mut nodes = vec![];
+    let mut edges = vec![];
+    let mut prev_id: Option<String> = None;
+    let mut pending_label: Option<String> = None;
+
+    for part in pair.into_inner() {
+        match part.as_rule() {
+            Rule::shorthand_rect | Rule::shorthand_diamond | Rule::shorthand_rounded => {
+                let (id, label, shape) = parse_shorthand_node(part);
+
+                // Only add node if it doesn't already exist in doc or our new nodes
+                let exists = doc.nodes.iter().any(|n| n.id == id)
+                    || nodes.iter().any(|n: &di_ag_ir::Node| n.id == id);
+                if !exists {
+                    nodes.push(di_ag_ir::Node {
+                        id: id.clone(),
+                        label,
+                        shape,
+                        position: None,
+                        size: None,
+                        style: NodeStyle::default(),
+                        ports: vec![],
+                        children: vec![],
+                    });
+                }
+
+                // Create edge from previous node
+                if let Some(source) = prev_id.take() {
+                    let edge_idx = doc.edges.len() + edges.len();
+                    let mut edge = di_ag_ir::Edge {
+                        id: format!("e{}", edge_idx),
+                        source,
+                        target: id.clone(),
+                        label: None,
+                        edge_type: EdgeType::default(),
+                        waypoints: vec![],
+                        style: EdgeStyle::default(),
+                    };
+                    if let Some(lbl) = pending_label.take() {
+                        edge.label = Some(lbl);
+                    }
+                    edges.push(edge);
+                }
+
+                prev_id = Some(id);
+            }
+            Rule::simple_arrow => {
+                // No label, just continue
+            }
+            Rule::chain_arrow => {
+                // Extract label if present
+                if let Some(label_pair) = part.into_inner().next() {
+                    if label_pair.as_rule() == Rule::chain_label {
+                        pending_label = Some(label_pair.as_str().trim().to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok((nodes, edges))
+}
+
+fn parse_repeat(
+    pair: pest::iterators::Pair<Rule>,
+    _ctx: &ParseContext,
+    edge_offset: usize,
+) -> Result<(Vec<di_ag_ir::Node>, Vec<di_ag_ir::Edge>), ParseError> {
+    let mut inner = pair.into_inner();
+    let count_str = inner.next().unwrap().as_str();
+    let count: usize = count_str
+        .parse()
+        .map_err(|_| ParseError::InvalidNumber(count_str.into()))?;
+    let var_name = inner.next().unwrap().as_str().to_string();
+    let raw_block = inner.next().unwrap().as_str(); // repeat_raw_block
+
+    // Strip surrounding braces
+    let body = raw_block
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or(raw_block)
+        .trim();
+
+    let mut nodes = vec![];
+    let mut edges = vec![];
+    let mut edge_count = edge_offset;
+
+    for i in 0..count {
+        let idx = i.to_string();
+        // Substitute ${var_name} and $var_name with the index
+        let expanded = body
+            .replace(&format!("${{{}}}", var_name), &idx)
+            .replace(&format!("${}", var_name), &idx);
+
+        // Parse expanded text as a mini-document
+        let mini_doc = crate::parser::parse_dsl(&expanded)
+            .map_err(|e| ParseError::Grammar(format!("In repeat iteration {}: {}", i, e)))?;
+
+        nodes.extend(mini_doc.nodes);
+        for mut edge in mini_doc.edges {
+            edge.id = format!("e{}", edge_count);
+            edges.push(edge);
+            edge_count += 1;
+        }
+    }
+
+    Ok((nodes, edges))
+}
+
 fn parse_let(
     pair: pest::iterators::Pair<Rule>,
     ctx: &mut ParseContext,
@@ -455,7 +595,18 @@ fn resolve_value(
                 let var_name = &inner.as_str()[1..];
                 match ctx.variables.get(var_name) {
                     Some(VariableValue::String(s)) => Ok(s.clone()),
-                    Some(VariableValue::Style(_)) => Ok(format!("<style:{}>", var_name)),
+                    Some(VariableValue::Style(s)) => {
+                        // When a style variable is used as a scalar value (e.g., as a
+                        // fill color), return the most useful single field: fill first,
+                        // then stroke, otherwise empty string.
+                        if let Some(ref fill) = s.fill {
+                            Ok(fill.clone())
+                        } else if let Some(ref stroke) = s.stroke {
+                            Ok(stroke.clone())
+                        } else {
+                            Ok(String::new())
+                        }
+                    }
                     None => Err(ParseError::UndefinedVariable(var_name.into())),
                 }
             }

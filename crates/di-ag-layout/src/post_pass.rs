@@ -1,5 +1,7 @@
 use di_ag_ir::{Document, Waypoint};
 
+type NodeInfo = Vec<(String, Option<(f64, f64)>, Option<(f64, f64)>)>;
+
 pub fn run_post_passes(doc: &mut Document) {
     fix_overlaps(doc);
     route_edges(doc);
@@ -34,7 +36,7 @@ fn fix_overlaps(doc: &mut Document) {
 
 fn route_edges(doc: &mut Document) {
     // Collect node centers as (center_bottom, center_top) for edge routing
-    let node_info: Vec<(String, Option<(f64, f64)>, Option<(f64, f64)>)> = doc
+    let node_info: NodeInfo = doc
         .nodes
         .iter()
         .map(|n| {

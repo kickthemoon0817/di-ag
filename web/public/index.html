@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>di-ag — Interactive Diagram Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #1e1e2e; color: #cdd6f4; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #181825; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #313244; }
+  header h1 { font-size: 16px; font-weight: 600; color: #89b4fa; }
+  .toolbar { display: flex; gap: 8px; align-items: center; }
+  .toolbar select, .toolbar button { background: #313244; color: #cdd6f4; border: 1px solid #45475a; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+  .toolbar button:hover { background: #45475a; }
+  .toolbar button.primary { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+  .toolbar button.primary:hover { background: #74c7ec; }
+  .main { flex: 1; display: flex; overflow: hidden; }
+  .editor-pane { width: 40%; display: flex; flex-direction: column; border-right: 1px solid #313244; }
+  .preview-pane { flex: 1; display: flex; flex-direction: column; background: #11111b; }
+  .pane-header { padding: 8px 16px; font-size: 12px; color: #6c7086; background: #181825; border-bottom: 1px solid #313244; display: flex; justify-content: space-between; align-items: center; }
+  #editor { flex: 1; width: 100%; background: #1e1e2e; color: #cdd6f4; border: none; outline: none; padding: 16px; font-family: inherit; font-size: 13px; line-height: 1.6; resize: none; tab-size: 4; }
+  #preview { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 20px; }
+  #preview svg { max-width: 100%; max-height: 100%; }
+  .status-bar { background: #181825; padding: 6px 16px; font-size: 11px; color: #6c7086; display: flex; justify-content: space-between; border-top: 1px solid #313244; }
+  .score { font-weight: 600; }
+  .score.good { color: #a6e3a1; }
+  .score.ok { color: #f9e2af; }
+  .score.bad { color: #f38ba8; }
+  .error-msg { color: #f38ba8; font-size: 12px; padding: 8px 16px; }
+  #inspect-panel { display: none; background: #181825; border-top: 1px solid #313244; max-height: 200px; overflow-y: auto; padding: 12px 16px; font-size: 11px; }
+  #inspect-panel.visible { display: block; }
+  #inspect-panel .issue { padding: 4px 0; border-bottom: 1px solid #313244; }
+  #inspect-panel .hint { color: #89b4fa; }
+</style>
+</head>
+<body>
+<header>
+  <h1>di-ag</h1>
+  <div class="toolbar">
+    <select id="theme-select">
+      <option value="light">Light</option>
+      <option value="dark" selected>Dark</option>
+      <option value="blueprint">Blueprint</option>
+      <option value="monochrome">Monochrome</option>
+    </select>
+    <button onclick="renderDiagram()">Render</button>
+    <button onclick="toggleInspect()">Inspect</button>
+    <button class="primary" onclick="exportSvg()">Export SVG</button>
+  </div>
+</header>
+<div class="main">
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>DSL Editor</span>
+      <span id="editor-status"></span>
+    </div>
+    <textarea id="editor" spellcheck="false">@preset flowchart
+@layout direction=TB spacing=60
+
+[Start] --> [Process Data] --> {Valid?}
+{Valid?} --yes--> [Save]
+{Valid?} --no--> [Retry]
+[Retry] --> [Process Data]</textarea>
+  </div>
+  <div class="preview-pane">
+    <div class="pane-header">
+      <span>Preview</span>
+      <span id="render-time"></span>
+    </div>
+    <div id="preview">
+      <span style="color: #6c7086">Press Render or Ctrl+Enter</span>
+    </div>
+    <div id="inspect-panel"></div>
+  </div>
+</div>
+<div class="status-bar">
+  <span id="status-left">Ready</span>
+  <span id="status-right"></span>
+</div>
+
+<script>
+const API = '';
+let lastSvg = '';
+let inspectVisible = false;
+
+const editor = document.getElementById('editor');
+const preview = document.getElementById('preview');
+
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    renderDiagram();
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 4;
+  }
+});
+
+let renderTimeout;
+editor.addEventListener('input', () => {
+  clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(renderDiagram, 500);
+});
+
+async function renderDiagram() {
+  const dsl = editor.value;
+  const theme = document.getElementById('theme-select').value;
+  const start = performance.now();
+
+  try {
+    const res = await fetch(API + '/api/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dsl, theme, inspect: true })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      preview.textContent = '';
+      const errDiv = document.createElement('div');
+      errDiv.className = 'error-msg';
+      errDiv.textContent = err;
+      preview.appendChild(errDiv);
+      setStatus('Error');
+      return;
+    }
+
+    const data = await res.json();
+    const elapsed = (performance.now() - start).toFixed(0);
+    document.getElementById('render-time').textContent = elapsed + 'ms';
+
+    lastSvg = data.svg;
+
+    // Parse SVG safely via DOMParser
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(data.svg, 'image/svg+xml');
+    const svgEl = svgDoc.documentElement;
+    if (svgEl.nodeName === 'svg') {
+      // Sanitize SVG to prevent XSS before inserting into the DOM
+      svgEl.querySelectorAll('script, foreignObject').forEach(el => el.remove());
+      svgEl.querySelectorAll('*').forEach(el => {
+        for (const attr of [...el.attributes]) {
+          if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+        }
+      });
+      preview.textContent = '';
+      preview.appendChild(document.importNode(svgEl, true));
+    }
+
+    if (data.inspection) {
+      const score = data.inspection.score;
+      const cls = score >= 80 ? 'good' : score >= 50 ? 'ok' : 'bad';
+      setStatus('Rendered');
+      const right = document.getElementById('status-right');
+      right.textContent = '';
+      const span = document.createElement('span');
+      span.className = 'score ' + cls;
+      span.textContent = 'Score: ' + score.toFixed(1);
+      right.appendChild(span);
+      updateInspectPanel(data.inspection);
+    } else {
+      setStatus('Rendered');
+    }
+  } catch (e) {
+    preview.textContent = '';
+    const errDiv = document.createElement('div');
+    errDiv.className = 'error-msg';
+    errDiv.textContent = 'Connection error: ' + e.message;
+    preview.appendChild(errDiv);
+    setStatus('Error');
+  }
+}
+
+function updateInspectPanel(inspection) {
+  const panel = document.getElementById('inspect-panel');
+  panel.textContent = '';
+  if (inspection.issues.length === 0) {
+    const ok = document.createElement('div');
+    ok.style.color = '#a6e3a1';
+    ok.textContent = 'No issues found';
+    panel.appendChild(ok);
+  } else {
+    inspection.issues.forEach(issue => {
+      const div = document.createElement('div');
+      div.className = 'issue';
+      const strong = document.createElement('strong');
+      strong.textContent = issue.type;
+      div.appendChild(strong);
+      if (issue.nodes) {
+        div.appendChild(document.createTextNode(' \u2014 nodes: ' + issue.nodes.join(', ')));
+      }
+      if (issue.edges) {
+        div.appendChild(document.createTextNode(' \u2014 edges: ' + issue.edges.join(', ')));
+      }
+      if (issue.fix_hint) {
+        div.appendChild(document.createElement('br'));
+        const hint = document.createElement('span');
+        hint.className = 'hint';
+        hint.textContent = 'Fix: ' + issue.fix_hint;
+        div.appendChild(hint);
+      }
+      panel.appendChild(div);
+    });
+  }
+}
+
+function toggleInspect() {
+  inspectVisible = !inspectVisible;
+  document.getElementById('inspect-panel').classList.toggle('visible', inspectVisible);
+}
+
+function exportSvg() {
+  if (!lastSvg) { alert('Render a diagram first'); return; }
+  const blob = new Blob([lastSvg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'diagram.svg';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function setStatus(text) {
+  document.getElementById('status-left').textContent = text;
+}
+
+renderDiagram();
+</script>
+</body>
+</html>
