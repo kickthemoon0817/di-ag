@@ -57,8 +57,8 @@ pub fn run(port: u16, open: bool) -> Result<(), String> {
                     .unwrap();
 
                 let mut body = String::new();
-                match request.as_reader().take(1_048_576).read_to_string(&mut body) {
-                    Ok(n) if n >= 1_048_576 => {
+                match request.as_reader().take(1_048_577).read_to_string(&mut body) {
+                    Ok(n) if n > 1_048_576 => {
                         let err_body = serde_json::json!({"error": "Request body too large (max 1 MB)"}).to_string();
                         let _ = request.respond(
                             tiny_http::Response::from_string(err_body)
