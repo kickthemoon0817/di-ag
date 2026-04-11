@@ -157,7 +157,7 @@ distribute vertical [layer1, layer2, layer3] gap=60
 - Cross-container references — `data_layer.db` addresses nested nodes
 - Shorthand syntax — `[rect]`, `{diamond}`, `(rounded)` for quick sketches
 
-**One-way compilation:** DSL -> IR only. The IR is the source of truth. The web editor works on IR, not DSL. `di-ag convert --to dsl` can generate DSL from IR for readability.
+**Compilation direction:** DSL -> IR is the primary path. The IR is the source of truth. The web editor works on IR, not DSL. `di-ag convert --to dsl` can *generate* DSL from IR for readability (pretty-print), but this is a lossy reconstruction — the generated DSL may not match the original authoring style. The IR remains authoritative.
 
 ## 3. Layout Engine
 
