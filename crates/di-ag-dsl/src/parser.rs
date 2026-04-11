@@ -596,10 +596,16 @@ fn resolve_value(
                 match ctx.variables.get(var_name) {
                     Some(VariableValue::String(s)) => Ok(s.clone()),
                     Some(VariableValue::Style(s)) => {
-                        // Serialize key style fields so the stored NodeStyle is actually read
-                        let fill = s.fill.as_deref().unwrap_or("none");
-                        let stroke = s.stroke.as_deref().unwrap_or("none");
-                        Ok(format!("<style:{}:fill={},stroke={}>", var_name, fill, stroke))
+                        // When a style variable is used as a scalar value (e.g., as a
+                        // fill color), return the most useful single field: fill first,
+                        // then stroke, otherwise empty string.
+                        if let Some(ref fill) = s.fill {
+                            Ok(fill.clone())
+                        } else if let Some(ref stroke) = s.stroke {
+                            Ok(stroke.clone())
+                        } else {
+                            Ok(String::new())
+                        }
                     }
                     None => Err(ParseError::UndefinedVariable(var_name.into())),
                 }
