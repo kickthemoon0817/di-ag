@@ -87,6 +87,12 @@ pub fn parse_dsl(input: &str) -> Result<Document, ParseError> {
         });
     }
 
+    // Renumber edge ids globally so container parsing (which uses local
+    // counters) does not produce collisions across scopes.
+    for (i, e) in doc.edges.iter_mut().enumerate() {
+        e.id = format!("e{}", i);
+    }
+
     Ok(doc)
 }
 
@@ -619,9 +625,31 @@ fn resolve_value(
 }
 
 fn unquote(s: &str) -> String {
-    if s.starts_with('"') && s.ends_with('"') {
-        s[1..s.len() - 1].to_string()
+    let inner = if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+        &s[1..s.len() - 1]
     } else {
-        s.to_string()
+        s
+    };
+    // Process escape sequences: \n \t \" \\ \r
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('"') => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some(other) => {
+                    out.push('\\');
+                    out.push(other);
+                }
+                None => out.push('\\'),
+            }
+        } else {
+            out.push(c);
+        }
     }
+    out
 }

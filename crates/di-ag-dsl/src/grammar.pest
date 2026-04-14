@@ -5,7 +5,7 @@ NEWLINE = _{ "\r\n" | "\n" | "\r" }
 
 // Primitives
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
-quoted_string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+quoted_string = @{ "\"" ~ (("\\" ~ ANY) | (!"\"" ~ ANY))* ~ "\"" }
 number = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 color_hex = @{ "\"#" ~ ASCII_HEX_DIGIT+ ~ "\"" }
 
