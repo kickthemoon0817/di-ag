@@ -44,17 +44,29 @@ pub fn inspect(doc: &Document) -> InspectionReport {
 
     let whitespace_efficiency = geometry::compute_whitespace_efficiency(doc);
 
-    // Label readability
+    // Label readability: graduated penalty on char count
     let total_labels = doc.nodes.len();
-    let good_labels = doc
-        .nodes
-        .iter()
-        .filter(|n| !n.label.is_empty() && n.label.len() <= 40)
-        .count();
     let label_readability = if total_labels == 0 {
         1.0
     } else {
-        good_labels as f64 / total_labels as f64
+        let sum: f64 = doc
+            .nodes
+            .iter()
+            .map(|n| {
+                let len = n.label.chars().count();
+                if n.label.is_empty() {
+                    0.6
+                } else if len <= 40 {
+                    1.0
+                } else if len <= 80 {
+                    // Linear decay from 1.0 to 0.3 over [40, 80]
+                    1.0 - (len - 40) as f64 / 40.0 * 0.7
+                } else {
+                    0.3
+                }
+            })
+            .sum();
+        sum / total_labels as f64
     };
 
     let symmetry = compute_symmetry(doc);
@@ -89,16 +101,21 @@ fn compute_symmetry(doc: &Document) -> f64 {
 
     let cx: f64 = positions.iter().map(|p| p.0).sum::<f64>() / positions.len() as f64;
 
-    let mut left = 0;
-    let mut right = 0;
+    // Count left/right of the centroid. Nodes exactly on the axis split
+    // evenly so perfectly column-aligned layouts score 1.0.
+    let mut left: f64 = 0.0;
+    let mut right: f64 = 0.0;
     for (x, _) in &positions {
-        if *x < cx {
-            left += 1;
+        if *x < cx - 1e-9 {
+            left += 1.0;
+        } else if *x > cx + 1e-9 {
+            right += 1.0;
         } else {
-            right += 1;
+            left += 0.5;
+            right += 0.5;
         }
     }
 
-    let balance = 1.0 - ((left as f64 - right as f64).abs() / positions.len() as f64);
+    let balance = 1.0 - ((left - right).abs() / positions.len() as f64);
     balance.clamp(0.0, 1.0)
 }
