@@ -99,16 +99,14 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         pos.y + size.height / 2.0 + font_size * 0.35
     };
 
-    result.push_str(&format!(
-        r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
+    result.push_str(&render_text_block(
         cx,
         cy,
-        font_family,
+        &node.label,
+        &font_family,
         font_size,
-        font_color,
-        escape_xml_label(&node.label)
+        &font_color,
     ));
-    result.push('\n');
 
     // Render children if container (children are already in absolute coordinates)
     for child in &node.children {
@@ -174,16 +172,14 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
         } else {
             (wps[0].x, wps[0].y)
         };
-        result.push_str(&format!(
-            r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
+        result.push_str(&render_text_block(
             mx,
             my - 6.0,
+            label,
             theme.node_font_family,
             theme.edge_font_size,
             theme.node_font_color,
-            escape_xml_label(label)
         ));
-        result.push('\n');
     }
 
     result.push_str("  </g>\n");
@@ -257,27 +253,46 @@ fn escape_xml(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-/// Escape a label for SVG text content. Renders literal newlines as multiple
-/// <tspan> lines so DSL `\n` escape sequences produce multi-line labels.
-fn escape_xml_label(s: &str) -> String {
-    if !s.contains('\n') {
-        return escape_xml(s);
+/// Render a possibly-multi-line label as one or more absolutely-positioned
+/// `<text>` elements centered at (cx, cy). Using separate text elements
+/// instead of tspans avoids the SVG tspan-x inheritance quirk that would
+/// left-align subsequent lines.
+fn render_text_block(
+    cx: f64,
+    cy: f64,
+    label: &str,
+    font_family: &str,
+    font_size: f64,
+    font_color: &str,
+) -> String {
+    let lines: Vec<&str> = label.split('\n').collect();
+    if lines.len() <= 1 {
+        return format!(
+            r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>
+"#,
+            cx,
+            cy,
+            font_family,
+            font_size,
+            font_color,
+            escape_xml(label)
+        );
     }
-    // Multi-line: wrap lines in tspans. This gets embedded in the <text>
-    // element already, so we produce only the inner content.
-    let lines: Vec<&str> = s.split('\n').collect();
-    let n = lines.len();
-    let start = -(((n as f64) - 1.0) * 0.6);
+    // Center the block vertically: shift start by half the block height.
+    let line_height = font_size * 1.2;
+    let block_height = (lines.len() as f64 - 1.0) * line_height;
+    let start_y = cy - block_height / 2.0;
     let mut out = String::new();
     for (i, line) in lines.iter().enumerate() {
-        let dy = if i == 0 {
-            format!("{}em", start)
-        } else {
-            "1.2em".to_string()
-        };
+        let y = start_y + (i as f64) * line_height;
         out.push_str(&format!(
-            "<tspan x=\"0\" dy=\"{}\">{}</tspan>",
-            dy,
+            r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>
+"#,
+            cx,
+            y,
+            font_family,
+            font_size,
+            font_color,
             escape_xml(line)
         ));
     }

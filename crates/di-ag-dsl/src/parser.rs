@@ -645,7 +645,12 @@ fn unquote(s: &str) -> String {
                     out.push('\\');
                     out.push(other);
                 }
-                None => out.push('\\'),
+                None => {
+                    // Trailing backslash with nothing after — drop it. A valid
+                    // parse can't actually reach this case because the grammar
+                    // requires \\" to terminate a quoted string, so a stray \
+                    // at the end would never match.
+                }
             }
         } else {
             out.push(c);
