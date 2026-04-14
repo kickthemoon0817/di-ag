@@ -1,0 +1,5 @@
+/target
+/.omc
+Cargo.lock.bak
+*.swp
+.DS_Store

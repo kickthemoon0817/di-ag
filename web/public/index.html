@@ -135,18 +135,12 @@ async function renderDiagram() {
 
     lastSvg = data.svg;
 
-    // Parse SVG safely via DOMParser
+    // Parse SVG safely via DOMParser and sanitize with a strict allowlist.
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(data.svg, 'image/svg+xml');
     const svgEl = svgDoc.documentElement;
     if (svgEl.nodeName === 'svg') {
-      // Sanitize SVG to prevent XSS before inserting into the DOM
-      svgEl.querySelectorAll('script, foreignObject').forEach(el => el.remove());
-      svgEl.querySelectorAll('*').forEach(el => {
-        for (const attr of [...el.attributes]) {
-          if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
-        }
-      });
+      sanitizeSvgAllowlist(svgEl);
       preview.textContent = '';
       preview.appendChild(document.importNode(svgEl, true));
     }
@@ -173,6 +167,52 @@ async function renderDiagram() {
     preview.appendChild(errDiv);
     setStatus('Error');
   }
+}
+
+const ALLOWED_SVG_TAGS = new Set([
+  'svg','g','defs','title','desc','rect','circle','ellipse','line','polyline',
+  'polygon','path','text','tspan','marker','use','linearGradient','radialGradient','stop'
+]);
+const ALLOWED_SVG_ATTRS = new Set([
+  'id','class','data-id','xmlns','viewBox','width','height','x','y','cx','cy','r','rx','ry',
+  'd','points','x1','y1','x2','y2','dx','dy','transform','fill','stroke','stroke-width',
+  'stroke-dasharray','stroke-linecap','stroke-linejoin','opacity','font-family','font-size',
+  'font-weight','text-anchor','dominant-baseline','offset','stop-color','stop-opacity',
+  'marker-end','marker-start','marker-mid','markerWidth','markerHeight','refX','refY','orient',
+  'preserveAspectRatio'
+]);
+
+function sanitizeSvgAllowlist(root) {
+  const toRemove = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let node = walker.currentNode;
+  while (node) {
+    const tag = node.nodeName.toLowerCase();
+    if (!ALLOWED_SVG_TAGS.has(tag)) {
+      toRemove.push(node);
+    } else {
+      for (const attr of [...node.attributes]) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value || '';
+        // Strip href/xlink:href entirely — marker refs use `url(#id)` via other attrs.
+        if (name === 'href' || name === 'xlink:href') {
+          node.removeAttribute(attr.name);
+          continue;
+        }
+        if (!ALLOWED_SVG_ATTRS.has(name)) {
+          node.removeAttribute(attr.name);
+          continue;
+        }
+        // Block any remaining javascript: or data: URIs in allowed attributes.
+        const lowered = value.trim().toLowerCase();
+        if (lowered.startsWith('javascript:')) {
+          node.removeAttribute(attr.name);
+        }
+      }
+    }
+    node = walker.nextNode();
+  }
+  for (const el of toRemove) el.remove();
 }
 
 function updateInspectPanel(inspection) {

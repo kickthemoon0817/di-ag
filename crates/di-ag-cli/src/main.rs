@@ -17,7 +17,7 @@ struct Cli {
 enum Commands {
     /// Render a diagram to SVG or PNG
     Render {
-        /// Input file (.diag, .json, .yaml). Use - for stdin.
+        /// Input file (.diag, .json, .yaml, .diag.png). Use - for stdin.
         input: String,
         /// Output file path
         #[arg(short, long)]
@@ -28,7 +28,7 @@ enum Commands {
         /// Theme override
         #[arg(long)]
         theme: Option<String>,
-        /// Layout algorithm override
+        /// Layout algorithm override (layered, force, orthogonal)
         #[arg(long)]
         layout: Option<String>,
         /// Include inspection report in output
@@ -40,6 +40,14 @@ enum Commands {
         /// Output as JSON (for piping)
         #[arg(long)]
         json: bool,
+    },
+    /// Extract the original DSL source embedded in a .diag.png file
+    Extract {
+        /// Path to the .diag.png file
+        input: String,
+        /// Output .diag file (defaults to stdout)
+        #[arg(short, long)]
+        output: Option<String>,
     },
     /// Validate a diagram (tier 1 constraint checks)
     Validate {
@@ -96,7 +104,7 @@ fn main() {
             output,
             format,
             theme,
-            layout: _,
+            layout,
             inspect,
             score_threshold,
             json,
@@ -105,10 +113,14 @@ fn main() {
             output.as_deref(),
             &format,
             theme.as_deref(),
+            layout.as_deref(),
             inspect,
             score_threshold,
             json,
         ),
+        Commands::Extract { input, output } => {
+            commands::extract_cmd::run(&input, output.as_deref())
+        }
         Commands::Validate {
             input,
             strict,
