@@ -90,8 +90,14 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         .font_family
         .clone()
         .unwrap_or_else(|| theme.node_font_family.into());
+    let is_container = !node.children.is_empty();
     let cx = pos.x + size.width / 2.0;
-    let cy = pos.y + size.height / 2.0 + font_size * 0.35;
+    let cy = if is_container {
+        // Container: anchor label near the top with a small inset.
+        pos.y + font_size + 6.0
+    } else {
+        pos.y + size.height / 2.0 + font_size * 0.35
+    };
 
     result.push_str(&format!(
         r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
@@ -100,11 +106,11 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         font_family,
         font_size,
         font_color,
-        escape_xml(&node.label)
+        escape_xml_label(&node.label)
     ));
     result.push('\n');
 
-    // Render children if container
+    // Render children if container (children are already in absolute coordinates)
     for child in &node.children {
         result.push_str(&render_node(child, theme));
     }
@@ -159,9 +165,15 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
 
     // Label
     if let Some(ref label) = edge.label {
-        let mid_idx = edge.waypoints.len() / 2;
-        let mx = (edge.waypoints[mid_idx - 1].x + edge.waypoints[mid_idx].x) / 2.0;
-        let my = (edge.waypoints[mid_idx - 1].y + edge.waypoints[mid_idx].y) / 2.0;
+        let wps = &edge.waypoints;
+        let (mx, my) = if wps.len() >= 2 {
+            let mid_idx = wps.len() / 2;
+            let a = &wps[mid_idx - 1];
+            let b = &wps[mid_idx];
+            ((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
+        } else {
+            (wps[0].x, wps[0].y)
+        };
         result.push_str(&format!(
             r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
             mx,
@@ -169,7 +181,7 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
             theme.node_font_family,
             theme.edge_font_size,
             theme.node_font_color,
-            escape_xml(label)
+            escape_xml_label(label)
         ));
         result.push('\n');
     }
@@ -220,6 +232,16 @@ fn compute_viewbox(doc: &Document) -> (f64, f64, f64, f64) {
 
     visit_nodes(&doc.nodes, &mut min_x, &mut min_y, &mut max_x, &mut max_y);
 
+    // Include edge waypoints so labels and long routes aren't clipped.
+    for edge in &doc.edges {
+        for wp in &edge.waypoints {
+            min_x = min_x.min(wp.x);
+            min_y = min_y.min(wp.y);
+            max_x = max_x.max(wp.x);
+            max_y = max_y.max(wp.y);
+        }
+    }
+
     if min_x == f64::MAX {
         (0.0, 0.0, 200.0, 200.0)
     } else {
@@ -232,4 +254,32 @@ fn escape_xml(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
+/// Escape a label for SVG text content. Renders literal newlines as multiple
+/// <tspan> lines so DSL `\n` escape sequences produce multi-line labels.
+fn escape_xml_label(s: &str) -> String {
+    if !s.contains('\n') {
+        return escape_xml(s);
+    }
+    // Multi-line: wrap lines in tspans. This gets embedded in the <text>
+    // element already, so we produce only the inner content.
+    let lines: Vec<&str> = s.split('\n').collect();
+    let n = lines.len();
+    let start = -(((n as f64) - 1.0) * 0.6);
+    let mut out = String::new();
+    for (i, line) in lines.iter().enumerate() {
+        let dy = if i == 0 {
+            format!("{}em", start)
+        } else {
+            "1.2em".to_string()
+        };
+        out.push_str(&format!(
+            "<tspan x=\"0\" dy=\"{}\">{}</tspan>",
+            dy,
+            escape_xml(line)
+        ));
+    }
+    out
 }
