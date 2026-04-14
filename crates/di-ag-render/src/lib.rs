@@ -9,7 +9,7 @@ mod tests;
 use di_ag_ir::Document;
 use thiserror::Error;
 
-pub use png::PngOptions;
+pub use png::{extract_source as extract_png_source, PngOptions, DIAG_SOURCE_KEYWORD};
 
 #[derive(Debug, Error)]
 pub enum RenderError {
@@ -37,4 +37,16 @@ pub fn render_png_with_theme(
 ) -> Result<Vec<u8>, RenderError> {
     let svg_str = render_svg_with_theme(doc, theme)?;
     png::svg_to_png(&svg_str, options)
+}
+
+/// Render to PNG and embed the original DSL source as a PNG iTXt chunk so the
+/// file is a self-contained, shareable, re-openable diagram (drawio-style).
+pub fn render_png_with_source(
+    doc: &Document,
+    options: &PngOptions,
+    theme: Option<&str>,
+    source: &str,
+) -> Result<Vec<u8>, RenderError> {
+    let svg_str = render_svg_with_theme(doc, theme)?;
+    png::svg_to_png_with_source(&svg_str, options, Some(source))
 }
