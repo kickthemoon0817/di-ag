@@ -70,6 +70,8 @@ fn emit_node(node: &Node, depth: usize, out: &mut String, all_edges: &[di_ag_ir:
     let has_props = !is_container
         && (!matches!(node.shape, Shape::Rect)
             || node.size.is_some()
+            || node.position.is_some()
+            || node.icon.is_some()
             || has_any_style(&node.style));
 
     if is_container {
@@ -89,6 +91,17 @@ fn emit_node(node: &Node, depth: usize, out: &mut String, all_edges: &[di_ag_ir:
         out.push_str(" {\n");
         if !matches!(node.shape, Shape::Rect) {
             out.push_str(&format!("{}    shape: {}\n", indent, shape_str(&node.shape)));
+        }
+        if let Some(icon) = &node.icon {
+            out.push_str(&format!("{}    icon: \"{}\"\n", indent, escape_dsl_string(icon)));
+        }
+        if let Some(pos) = &node.position {
+            out.push_str(&format!(
+                "{}    position: {},{}\n",
+                indent,
+                format_num(pos.x),
+                format_num(pos.y)
+            ));
         }
         if let Some(size) = &node.size {
             // Only emit if it looks user-specified (round width or non-default height).
