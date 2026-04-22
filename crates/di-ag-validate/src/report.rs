@@ -23,6 +23,8 @@ pub struct Violation {
     pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fix_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

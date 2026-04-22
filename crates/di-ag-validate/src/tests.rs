@@ -9,6 +9,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -27,6 +28,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A1".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -37,6 +39,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A2".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -58,6 +61,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -68,6 +72,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "B".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -78,6 +83,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "c".into(),
             label: "C".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -107,6 +113,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".repeat(100),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -127,6 +134,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -157,6 +165,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".repeat(100),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,

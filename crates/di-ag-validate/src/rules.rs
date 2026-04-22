@@ -4,6 +4,34 @@ use di_ag_ir::Document;
 
 use crate::report::{Severity, Violation};
 
+/// Simple substring/prefix-based closest-match finder. Returns up to `max`
+/// names from `candidates` that share the longest common prefix or contain
+/// the query as a substring.
+fn close_matches(query: &str, candidates: &[&str], max: usize) -> Vec<String> {
+    let q = query.to_ascii_lowercase();
+    let mut scored: Vec<(&str, usize)> = candidates
+        .iter()
+        .map(|&c| {
+            let score = if c == q {
+                1000
+            } else {
+                // longest common prefix length
+                c.chars()
+                    .zip(q.chars())
+                    .take_while(|(a, b)| a == b)
+                    .count()
+                    * 10
+                    + if c.contains(q.as_str()) { 5 } else { 0 }
+            };
+            (c, score)
+        })
+        .filter(|(_, s)| *s > 0)
+        .collect();
+    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.truncate(max);
+    scored.into_iter().map(|(c, _)| c.to_string()).collect()
+}
+
 const MAX_LABEL_LENGTH: usize = 60;
 
 pub fn check_duplicate_ids(doc: &Document) -> Vec<Violation> {
@@ -28,6 +56,7 @@ pub fn check_duplicate_ids(doc: &Document) -> Vec<Violation> {
                         "Rename one of the '{}' nodes to a unique id",
                         node.id
                     )),
+                    suggestions: None,
                 });
             }
             visit(&node.children, seen, violations);
@@ -51,6 +80,7 @@ pub fn check_duplicate_edge_ids(doc: &Document) -> Vec<Violation> {
                 edge: Some(edge.id.clone()),
                 message: Some(format!("Duplicate edge id: {}", edge.id)),
                 fix_hint: Some("Edge ids must be unique across the document".into()),
+                suggestions: None,
             });
         }
     }
@@ -82,6 +112,7 @@ pub fn check_orphan_nodes(doc: &Document) -> Vec<Violation> {
                     "Connect '{}' to another node with an edge, or remove it",
                     node.id
                 )),
+                suggestions: None,
             });
         }
     }
@@ -106,6 +137,7 @@ pub fn check_label_lengths(doc: &Document) -> Vec<Violation> {
                         len, MAX_LABEL_LENGTH
                     )),
                     fix_hint: Some("Shorten the label or use an edge label for detail".into()),
+                    suggestions: None,
                 });
             }
             visit(&node.children, violations);
@@ -146,6 +178,7 @@ pub fn check_edge_references(doc: &Document) -> Vec<Violation> {
                     "Define a node with id '{}' or fix the edge source",
                     edge.source
                 )),
+                suggestions: None,
             });
         }
         let target_base = edge.target.split('.').next().unwrap_or(&edge.target);
@@ -164,6 +197,7 @@ pub fn check_edge_references(doc: &Document) -> Vec<Violation> {
                     "Define a node with id '{}' or fix the edge target",
                     edge.target
                 )),
+                suggestions: None,
             });
         }
     }
@@ -188,6 +222,7 @@ pub fn check_self_loops(doc: &Document) -> Vec<Violation> {
                     "Self-loops are rarely intentional in flowcharts; split into two nodes if needed"
                         .into(),
                 ),
+                suggestions: None,
             });
         }
     }
@@ -284,5 +319,51 @@ pub fn check_cycles(doc: &Document) -> Vec<Violation> {
             "Flowcharts usually should not contain cycles; consider a loopback label or break the cycle"
                 .into(),
         ),
+        suggestions: None,
     }]
+}
+
+pub fn check_unknown_icons(doc: &Document) -> Vec<Violation> {
+    let known: Vec<&str> = di_ag_render::ICON_NAMES.to_vec();
+    let available_list = known.join(", ");
+    let mut violations = vec![];
+
+    fn visit(
+        nodes: &[di_ag_ir::Node],
+        known: &[&str],
+        available_list: &str,
+        violations: &mut Vec<Violation>,
+    ) {
+        for node in nodes {
+            if let Some(icon_name) = &node.icon {
+                if di_ag_render::icon_svg(icon_name).is_none() {
+                    let suggestions = close_matches(icon_name, known, 3);
+                    violations.push(Violation {
+                        violation_type: "unknown_icon".into(),
+                        severity: Severity::Warn,
+                        node: Some(node.id.clone()),
+                        nodes: None,
+                        edge: None,
+                        message: Some(format!(
+                            "Unknown icon name: '{}'. Available: {}",
+                            icon_name, available_list
+                        )),
+                        fix_hint: Some(format!(
+                            "Use one of the built-in icon names: {}",
+                            available_list
+                        )),
+                        suggestions: if suggestions.is_empty() {
+                            None
+                        } else {
+                            Some(suggestions)
+                        },
+                    });
+                }
+            }
+            visit(&node.children, known, available_list, violations);
+        }
+    }
+
+    visit(&doc.nodes, &known, &available_list, &mut violations);
+    violations
 }

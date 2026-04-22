@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 di-ag-ir = { path = "../di-ag-ir" }
+di-ag-render = { path = "../di-ag-render" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
