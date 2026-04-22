@@ -84,6 +84,12 @@ enum Commands {
     },
     /// Create a starter .diag file
     Init,
+    /// List built-in icons available for node decorations
+    Icons {
+        /// Output as JSON array with descriptions
+        #[arg(long)]
+        json: bool,
+    },
     /// Launch web UI for interactive editing
     Serve {
         /// Port number
@@ -134,6 +140,7 @@ fn main() {
         } => commands::convert::run(&input, &to, from.as_deref(), output.as_deref()),
         Commands::Fmt { input, check } => commands::fmt::run(&input, check),
         Commands::Init => commands::init::run(),
+        Commands::Icons { json } => commands::icons::run(json),
         Commands::Serve { port, open } => commands::serve::run(port, open),
     };
 

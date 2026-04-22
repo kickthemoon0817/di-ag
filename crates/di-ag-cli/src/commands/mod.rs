@@ -2,6 +2,7 @@ pub mod convert;
 pub mod dsl_emit;
 pub mod extract_cmd;
 pub mod fmt;
+pub mod icons;
 pub mod init;
 pub mod render;
 pub mod serve;

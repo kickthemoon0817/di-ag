@@ -7,7 +7,10 @@ const INDEX_HTML: &str = include_str!("../../../../web/public/index.html");
 
 #[derive(Deserialize)]
 struct RenderRequest {
-    dsl: String,
+    #[serde(default)]
+    dsl: Option<String>,
+    #[serde(default)]
+    ir: Option<di_ag_ir::Document>,
     #[serde(default)]
     theme: Option<String>,
     #[serde(default)]
@@ -73,6 +76,16 @@ fn handle_request(mut request: tiny_http::Request) {
                         .unwrap(),
                 )
                 .with_header(csp);
+            if let Err(e) = request.respond(response) {
+                eprintln!("Response error: {}", e);
+            }
+        }
+        ("GET", "/api/icons") => {
+            let json_header = "Content-Type: application/json"
+                .parse::<tiny_http::Header>()
+                .unwrap();
+            let body = icons_json();
+            let response = tiny_http::Response::from_string(body).with_header(json_header);
             if let Err(e) = request.respond(response) {
                 eprintln!("Response error: {}", e);
             }
@@ -155,24 +168,80 @@ fn handle_request(mut request: tiny_http::Request) {
     }
 }
 
-fn handle_render(req: &RenderRequest) -> Result<String, String> {
-    let doc = di_ag_dsl::parse(&req.dsl).map_err(|e| format!("Parse error: {}", e))?;
+fn icon_description(name: &str) -> &'static str {
+    match name {
+        "user" => "Person / actor / human user",
+        "database" => "SQL or NoSQL database",
+        "server" => "Physical or virtual server / rack",
+        "cloud" => "Cloud service / SaaS",
+        "api" => "API endpoint / service interface",
+        "web" => "Web browser / web app",
+        "mobile" => "Mobile phone / native app",
+        "cache" => "In-memory cache (Redis, Memcached)",
+        "queue" => "Message queue / job queue",
+        "auth" => "Authentication service",
+        "lock" => "Security / access control (alias of auth)",
+        "storage" => "Block storage / object storage",
+        "gear" => "Configuration / settings / service",
+        "settings" => "Configuration (alias of gear)",
+        "file" => "Document / file",
+        "chart" => "Analytics / reporting",
+        "mail" => "Email / notification service",
+        _ => "",
+    }
+}
 
-    let doc = di_ag_layout::layout(doc).map_err(|e| format!("Layout error: {}", e))?;
+fn icons_json() -> String {
+    let mut names: Vec<&str> = di_ag_render::ICON_NAMES.to_vec();
+    names.sort_unstable();
+    let icons: Vec<serde_json::Value> = names
+        .iter()
+        .map(|&name| {
+            serde_json::json!({
+                "name": name,
+                "description": icon_description(name),
+                "svg": di_ag_render::icon_svg(name).unwrap_or(""),
+            })
+        })
+        .collect();
+    serde_json::json!({ "icons": icons }).to_string()
+}
+
+fn handle_render(req: &RenderRequest) -> Result<String, String> {
+    // Resolve the pre-layout document and the DSL string to return.
+    let (pre_layout_doc, dsl_out) = if let Some(ir_doc) = &req.ir {
+        // IR path: regenerate DSL from the pre-layout IR.
+        let dsl = super::dsl_emit::emit(ir_doc);
+        (ir_doc.clone(), dsl)
+    } else if let Some(dsl_str) = &req.dsl {
+        let doc = di_ag_dsl::parse(dsl_str).map_err(|e| format!("Parse error: {}", e))?;
+        (doc, dsl_str.clone())
+    } else {
+        return Err("Request must provide either 'dsl' or 'ir' field".into());
+    };
+
+    let ir_out = pre_layout_doc.clone();
+
+    let doc = di_ag_layout::layout(pre_layout_doc).map_err(|e| format!("Layout error: {}", e))?;
 
     let theme = req.theme.as_deref();
     let svg = di_ag_render::render_svg_with_theme(&doc, theme)
         .map_err(|e| format!("Render error: {}", e))?;
 
-    if req.inspect {
-        let report = di_ag_inspect::inspect(&doc);
-        let result = serde_json::json!({
-            "svg": svg,
-            "inspection": report,
-        });
-        serde_json::to_string(&result).map_err(|e| format!("JSON error: {}", e))
+    let inspection = if req.inspect {
+        serde_json::to_value(di_ag_inspect::inspect(&doc))
+            .map_err(|e| format!("JSON error: {}", e))?
     } else {
-        let result = serde_json::json!({ "svg": svg });
-        serde_json::to_string(&result).map_err(|e| format!("JSON error: {}", e))
-    }
+        serde_json::Value::Null
+    };
+
+    let ir_value = serde_json::to_value(&ir_out).map_err(|e| format!("JSON error: {}", e))?;
+
+    let result = serde_json::json!({
+        "svg": svg,
+        "dsl": dsl_out,
+        "ir": ir_value,
+        "inspection": inspection,
+    });
+    serde_json::to_string(&result).map_err(|e| format!("JSON error: {}", e))
 }

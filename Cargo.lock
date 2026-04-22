@@ -303,6 +303,7 @@ name = "di-ag-validate"
 version = "0.1.0"
 dependencies = [
  "di-ag-ir",
+ "di-ag-render",
  "serde",
  "serde_json",
  "thiserror",
