@@ -8,6 +8,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 0.0 }),
             size: Some(Size {
@@ -21,6 +22,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "B".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 100.0 }),
             size: Some(Size {
@@ -81,6 +83,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 0.0 }),
             size: Some(Size {
@@ -94,6 +97,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "B".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 50.0, y: 20.0 }),
             size: Some(Size {
@@ -128,6 +132,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 0.0 }),
             size: Some(Size {
@@ -141,6 +146,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "B".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 30.0, y: 10.0 }),
             size: Some(Size {

@@ -8,6 +8,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "Hello".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 10.0, y: 10.0 }),
             size: Some(Size {
@@ -21,6 +22,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "World".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position {
                 x: 10.0,
@@ -83,6 +85,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "d".into(),
             label: "Decision".into(),
+            icon: None,
             shape: Shape::Diamond,
             position: Some(Position { x: 50.0, y: 50.0 }),
             size: Some(Size {
@@ -112,6 +115,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "s".into(),
             label: "Styled".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 0.0 }),
             size: Some(Size {
