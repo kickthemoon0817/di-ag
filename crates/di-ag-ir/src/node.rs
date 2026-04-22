@@ -6,6 +6,8 @@ use crate::style::{NodeStyle, Position, Shape, Size};
 pub struct Node {
     pub id: String,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     #[serde(default)]
     pub shape: Shape,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -8,6 +8,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "Hello".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 10.0, y: 10.0 }),
             size: Some(Size {
@@ -21,6 +22,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "World".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position {
                 x: 10.0,
@@ -83,6 +85,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "d".into(),
             label: "Decision".into(),
+            icon: None,
             shape: Shape::Diamond,
             position: Some(Position { x: 50.0, y: 50.0 }),
             size: Some(Size {
@@ -107,11 +110,43 @@ mod tests {
     }
 
     #[test]
+    fn icon_names_match_icons_table() {
+        use crate::icons::{icon_description, icon_svg, ICONS, ICON_NAMES};
+        assert_eq!(
+            ICON_NAMES.len(),
+            ICONS.len(),
+            "ICON_NAMES ({}) and ICONS ({}) have diverged",
+            ICON_NAMES.len(),
+            ICONS.len()
+        );
+        for name in ICON_NAMES {
+            assert!(
+                icon_svg(name).is_some(),
+                "ICON_NAMES has '{}' but icon_svg returns None",
+                name
+            );
+            assert!(
+                icon_description(name).is_some(),
+                "ICON_NAMES has '{}' but icon_description returns None",
+                name
+            );
+        }
+        for entry in ICONS {
+            assert!(
+                ICON_NAMES.contains(&entry.name),
+                "ICONS has '{}' but ICON_NAMES does not",
+                entry.name
+            );
+        }
+    }
+
+    #[test]
     fn test_render_custom_node_style() {
         let mut doc = Document::default();
         doc.nodes.push(Node {
             id: "s".into(),
             label: "Styled".into(),
+            icon: None,
             shape: Shape::Rect,
             position: Some(Position { x: 0.0, y: 0.0 }),
             size: Some(Size {

@@ -70,6 +70,8 @@ fn emit_node(node: &Node, depth: usize, out: &mut String, all_edges: &[di_ag_ir:
     let has_props = !is_container
         && (!matches!(node.shape, Shape::Rect)
             || node.size.is_some()
+            || node.position.is_some()
+            || node.icon.is_some()
             || has_any_style(&node.style));
 
     if is_container {
@@ -89,6 +91,17 @@ fn emit_node(node: &Node, depth: usize, out: &mut String, all_edges: &[di_ag_ir:
         out.push_str(" {\n");
         if !matches!(node.shape, Shape::Rect) {
             out.push_str(&format!("{}    shape: {}\n", indent, shape_str(&node.shape)));
+        }
+        if let Some(icon) = &node.icon {
+            out.push_str(&format!("{}    icon: \"{}\"\n", indent, escape_dsl_string(icon)));
+        }
+        if let Some(pos) = &node.position {
+            out.push_str(&format!(
+                "{}    position: {},{}\n",
+                indent,
+                format_num(pos.x),
+                format_num(pos.y)
+            ));
         }
         if let Some(size) = &node.size {
             // Only emit if it looks user-specified (round width or non-default height).
@@ -201,4 +214,37 @@ fn escape_dsl_string(s: &str) -> String {
         .replace('"', "\\\"")
         .replace('\n', "\\n")
         .replace('\t', "\\t")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit;
+
+    #[test]
+    fn test_roundtrip_icon_and_position() {
+        let src = r#"node db "Database" {
+    icon: "database"
+    position: 150, 75
+}
+"#;
+        let parsed = di_ag_dsl::parse(src).expect("initial parse");
+        assert_eq!(parsed.nodes[0].icon.as_deref(), Some("database"));
+        let pos = parsed.nodes[0]
+            .position
+            .as_ref()
+            .expect("expected position");
+        assert_eq!(pos.x, 150.0);
+        assert_eq!(pos.y, 75.0);
+
+        let emitted = emit(&parsed);
+        // Re-parse the emitted DSL and confirm both fields survived.
+        let reparsed = di_ag_dsl::parse(&emitted).expect("reparse");
+        assert_eq!(reparsed.nodes[0].icon.as_deref(), Some("database"));
+        let pos2 = reparsed.nodes[0]
+            .position
+            .as_ref()
+            .expect("expected position after roundtrip");
+        assert_eq!(pos2.x, 150.0);
+        assert_eq!(pos2.y, 75.0);
+    }
 }

@@ -24,12 +24,13 @@ key_value_pair = { identifier ~ "=" ~ value }
 // Nodes
 node_stmt = { "node" ~ identifier ~ quoted_string? ~ node_block? }
 node_block = { "{" ~ NEWLINE* ~ node_property* ~ "}" }
-node_property = { (shape_prop | size_prop | style_prop | port_prop | icon_prop) ~ NEWLINE* }
+node_property = { (shape_prop | size_prop | pos_prop | style_prop | port_prop | icon_prop) ~ NEWLINE* }
 shape_prop = { "shape" ~ ":" ~ identifier }
 size_prop = { "size" ~ ":" ~ number ~ "x" ~ number }
+pos_prop = { "position" ~ ":" ~ number ~ "," ~ number }
 style_prop = { "style" ~ ":" ~ style_block }
 port_prop = { "port" ~ ":" ~ port_list }
-icon_prop = { "icon" ~ ":" ~ identifier }
+icon_prop = { "icon" ~ ":" ~ (quoted_string | identifier) }
 
 // Style blocks
 style_block = { "{" ~ style_entry ~ ("," ~ style_entry)* ~ ","? ~ "}" }

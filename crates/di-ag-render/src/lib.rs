@@ -1,7 +1,10 @@
+pub mod icons;
 pub mod png;
 pub mod shapes;
 pub mod svg;
 pub mod theme;
+
+pub use icons::{icon_description, icon_svg, IconEntry, ICONS, ICON_NAMES};
 
 #[cfg(test)]
 mod tests;

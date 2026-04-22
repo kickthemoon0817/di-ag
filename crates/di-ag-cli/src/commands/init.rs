@@ -1,5 +1,6 @@
 pub fn run() -> Result<(), String> {
-    let template = r##"@preset flowchart
+    let template = r##"# See `di-ag icons` for the built-in icon set (user, database, api, ...)
+@preset flowchart
 @theme light
 @layout direction=TB spacing=60
 
@@ -11,6 +12,7 @@ node start "Start" {
 
 node process "Process Data" {
     shape: rect
+    icon: "gear"
 }
 
 node decision "Valid?" {
@@ -19,6 +21,7 @@ node decision "Valid?" {
 
 node success "Done" {
     shape: rounded_rect
+    icon: "chart"
     style: { fill: "#2196F3", stroke: "#1565C0" }
 }
 

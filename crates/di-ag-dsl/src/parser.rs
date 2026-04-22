@@ -164,8 +164,10 @@ fn parse_node(
     let mut inner = pair.into_inner();
     let id = inner.next().unwrap().as_str().to_string();
     let mut label = id.clone();
+    let mut icon: Option<String> = None;
     let mut shape = Shape::default();
     let mut size = None;
+    let mut position = None;
     let mut style = NodeStyle::default();
     let mut ports = vec![];
 
@@ -202,6 +204,22 @@ fn parse_node(
                                     height: h,
                                 });
                             }
+                            Rule::pos_prop => {
+                                let mut nums = p.into_inner();
+                                let x: f64 = nums
+                                    .next()
+                                    .unwrap()
+                                    .as_str()
+                                    .parse()
+                                    .map_err(|_| ParseError::InvalidNumber("pos_x".into()))?;
+                                let y: f64 = nums
+                                    .next()
+                                    .unwrap()
+                                    .as_str()
+                                    .parse()
+                                    .map_err(|_| ParseError::InvalidNumber("pos_y".into()))?;
+                                position = Some(Position { x, y });
+                            }
                             Rule::style_prop => {
                                 style =
                                     parse_style_block(p.into_inner().next().unwrap(), ctx)?;
@@ -220,6 +238,14 @@ fn parse_node(
                                     }
                                 }
                             }
+                            Rule::icon_prop => {
+                                let inner = p.into_inner().next().unwrap();
+                                let name = match inner.as_rule() {
+                                    Rule::quoted_string => unquote(inner.as_str()),
+                                    _ => inner.as_str().to_string(),
+                                };
+                                icon = Some(name);
+                            }
                             _ => {}
                         }
                     }
@@ -232,8 +258,9 @@ fn parse_node(
     Ok(Node {
         id,
         label,
+        icon,
         shape,
-        position: None,
+        position,
         size,
         style,
         ports,
@@ -373,6 +400,7 @@ fn parse_container(
     let node = Node {
         id,
         label,
+        icon: None,
         shape: Shape::Rect,
         position: None,
         size: None,
@@ -421,6 +449,7 @@ fn parse_chain(
                     nodes.push(di_ag_ir::Node {
                         id: id.clone(),
                         label,
+                        icon: None,
                         shape,
                         position: None,
                         size: None,

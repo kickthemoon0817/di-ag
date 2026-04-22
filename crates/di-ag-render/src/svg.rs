@@ -57,7 +57,7 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         None => return String::new(),
     };
 
-    let mut result = format!(r#"  <g data-id="{}">"#, node.id);
+    let mut result = format!(r#"  <g data-id="{}">"#, escape_xml(&node.id));
     result.push('\n');
 
     let attrs = ShapeAttrs {
@@ -92,12 +92,38 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         .unwrap_or_else(|| theme.node_font_family.into());
     let is_container = !node.children.is_empty();
     let cx = pos.x + size.width / 2.0;
+
+    // Icon: if present and recognized, render it above the label and shift
+    // the label down to the lower half of the node. Icon uses the font color
+    // as its stroke so it reads as part of the label.
+    let icon_fragment = node
+        .icon
+        .as_deref()
+        .and_then(|name| crate::icons::icon_svg_colored(name, &font_color));
+
     let cy = if is_container {
         // Container: anchor label near the top with a small inset.
         pos.y + font_size + 6.0
+    } else if icon_fragment.is_some() {
+        // With icon: label in the lower 2/3 of the node so the icon has
+        // room in the upper 1/3.
+        pos.y + size.height * 0.68 + font_size * 0.35
     } else {
         pos.y + size.height / 2.0 + font_size * 0.35
     };
+
+    if let Some(fragment) = icon_fragment {
+        // Icon occupies a 20x20 box by design. Place its top-left so the
+        // icon's center lands on (cx, pos.y + size.height * 0.3).
+        let icon_cx = cx;
+        let icon_cy = pos.y + size.height * 0.30;
+        let icon_tx = icon_cx - 10.0;
+        let icon_ty = icon_cy - 10.0;
+        result.push_str(&format!(
+            "    <g transform=\"translate({} {})\">\n      {}\n    </g>\n",
+            icon_tx, icon_ty, fragment
+        ));
+    }
 
     result.push_str(&render_text_block(
         cx,
@@ -130,7 +156,7 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
         .unwrap_or_else(|| theme.edge_stroke.into());
     let stroke_width = edge.style.stroke_width.unwrap_or(theme.edge_stroke_width);
 
-    let mut result = format!(r#"  <g data-id="{}">"#, edge.id);
+    let mut result = format!(r#"  <g data-id="{}">"#, escape_xml(&edge.id));
     result.push('\n');
 
     // Path
@@ -152,7 +178,10 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
 
     result.push_str(&format!(
         r#"    <path d="{}" fill="none" stroke="{}" stroke-width="{}"{}/>"#,
-        d, stroke, stroke_width, dash
+        d,
+        escape_xml(&stroke),
+        stroke_width,
+        dash
     ));
     result.push('\n');
 
@@ -198,7 +227,13 @@ fn render_arrowhead(from_x: f64, from_y: f64, to_x: f64, to_y: f64, color: &str)
 
     format!(
         "    <polygon points=\"{},{} {},{} {},{}\" fill=\"{}\"/>\n",
-        to_x, to_y, x1, y1, x2, y2, color
+        to_x,
+        to_y,
+        x1,
+        y1,
+        x2,
+        y2,
+        escape_xml(color)
     )
 }
 
@@ -245,7 +280,10 @@ fn compute_viewbox(doc: &Document) -> (f64, f64, f64, f64) {
     }
 }
 
-fn escape_xml(s: &str) -> String {
+/// XML-escape a string for safe interpolation into an SVG attribute value or
+/// text node. Exposed to sibling modules (shapes.rs) so every user-controlled
+/// value is escaped at the emit site.
+pub(crate) fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -266,15 +304,17 @@ fn render_text_block(
     font_color: &str,
 ) -> String {
     let lines: Vec<&str> = label.split('\n').collect();
+    let ff = escape_xml(font_family);
+    let fc = escape_xml(font_color);
     if lines.len() <= 1 {
         return format!(
             r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>
 "#,
             cx,
             cy,
-            font_family,
+            ff,
             font_size,
-            font_color,
+            fc,
             escape_xml(label)
         );
     }
@@ -290,9 +330,9 @@ fn render_text_block(
 "#,
             cx,
             y,
-            font_family,
+            ff,
             font_size,
-            font_color,
+            fc,
             escape_xml(line)
         ));
     }

@@ -17,6 +17,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "Node A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -40,6 +41,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "a".into(),
             label: "A".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -50,6 +52,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "b".into(),
             label: "B".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -81,6 +84,7 @@ mod tests {
         doc.nodes.push(Node {
             id: "x".into(),
             label: "X".into(),
+            icon: None,
             shape: Shape::Diamond,
             position: Some(Position { x: 100.0, y: 200.0 }),
             size: Some(Size { width: 80.0, height: 40.0 }),
@@ -100,6 +104,7 @@ mod tests {
         let child = Node {
             id: "inner".into(),
             label: "Inner".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,
@@ -110,6 +115,7 @@ mod tests {
         let container = Node {
             id: "outer".into(),
             label: "Outer".into(),
+            icon: None,
             shape: Shape::Rect,
             position: None,
             size: None,

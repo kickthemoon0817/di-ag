@@ -17,6 +17,7 @@ pub fn validate(doc: &Document) -> ValidationReport {
     violations.extend(rules::check_self_loops(doc));
     violations.extend(rules::check_cycles(doc));
     violations.extend(rules::check_duplicate_edge_ids(doc));
+    violations.extend(rules::check_unknown_icons(doc));
 
     let valid = !violations.iter().any(|v| v.severity == Severity::Error);
 
