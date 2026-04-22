@@ -57,7 +57,7 @@ fn render_node(node: &Node, theme: &Theme) -> String {
         None => return String::new(),
     };
 
-    let mut result = format!(r#"  <g data-id="{}">"#, node.id);
+    let mut result = format!(r#"  <g data-id="{}">"#, escape_xml(&node.id));
     result.push('\n');
 
     let attrs = ShapeAttrs {
@@ -156,7 +156,7 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
         .unwrap_or_else(|| theme.edge_stroke.into());
     let stroke_width = edge.style.stroke_width.unwrap_or(theme.edge_stroke_width);
 
-    let mut result = format!(r#"  <g data-id="{}">"#, edge.id);
+    let mut result = format!(r#"  <g data-id="{}">"#, escape_xml(&edge.id));
     result.push('\n');
 
     // Path
@@ -178,7 +178,10 @@ fn render_edge(edge: &Edge, theme: &Theme) -> String {
 
     result.push_str(&format!(
         r#"    <path d="{}" fill="none" stroke="{}" stroke-width="{}"{}/>"#,
-        d, stroke, stroke_width, dash
+        d,
+        escape_xml(&stroke),
+        stroke_width,
+        dash
     ));
     result.push('\n');
 
@@ -224,7 +227,13 @@ fn render_arrowhead(from_x: f64, from_y: f64, to_x: f64, to_y: f64, color: &str)
 
     format!(
         "    <polygon points=\"{},{} {},{} {},{}\" fill=\"{}\"/>\n",
-        to_x, to_y, x1, y1, x2, y2, color
+        to_x,
+        to_y,
+        x1,
+        y1,
+        x2,
+        y2,
+        escape_xml(color)
     )
 }
 
@@ -271,7 +280,10 @@ fn compute_viewbox(doc: &Document) -> (f64, f64, f64, f64) {
     }
 }
 
-fn escape_xml(s: &str) -> String {
+/// XML-escape a string for safe interpolation into an SVG attribute value or
+/// text node. Exposed to sibling modules (shapes.rs) so every user-controlled
+/// value is escaped at the emit site.
+pub(crate) fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -292,15 +304,17 @@ fn render_text_block(
     font_color: &str,
 ) -> String {
     let lines: Vec<&str> = label.split('\n').collect();
+    let ff = escape_xml(font_family);
+    let fc = escape_xml(font_color);
     if lines.len() <= 1 {
         return format!(
             r#"    <text x="{}" y="{}" text-anchor="middle" font-family="{}" font-size="{}" fill="{}">{}</text>
 "#,
             cx,
             cy,
-            font_family,
+            ff,
             font_size,
-            font_color,
+            fc,
             escape_xml(label)
         );
     }
@@ -316,9 +330,9 @@ fn render_text_block(
 "#,
             cx,
             y,
-            font_family,
+            ff,
             font_size,
-            font_color,
+            fc,
             escape_xml(line)
         ));
     }

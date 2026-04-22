@@ -215,3 +215,36 @@ fn escape_dsl_string(s: &str) -> String {
         .replace('\n', "\\n")
         .replace('\t', "\\t")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::emit;
+
+    #[test]
+    fn test_roundtrip_icon_and_position() {
+        let src = r#"node db "Database" {
+    icon: "database"
+    position: 150, 75
+}
+"#;
+        let parsed = di_ag_dsl::parse(src).expect("initial parse");
+        assert_eq!(parsed.nodes[0].icon.as_deref(), Some("database"));
+        let pos = parsed.nodes[0]
+            .position
+            .as_ref()
+            .expect("expected position");
+        assert_eq!(pos.x, 150.0);
+        assert_eq!(pos.y, 75.0);
+
+        let emitted = emit(&parsed);
+        // Re-parse the emitted DSL and confirm both fields survived.
+        let reparsed = di_ag_dsl::parse(&emitted).expect("reparse");
+        assert_eq!(reparsed.nodes[0].icon.as_deref(), Some("database"));
+        let pos2 = reparsed.nodes[0]
+            .position
+            .as_ref()
+            .expect("expected position after roundtrip");
+        assert_eq!(pos2.x, 150.0);
+        assert_eq!(pos2.y, 75.0);
+    }
+}

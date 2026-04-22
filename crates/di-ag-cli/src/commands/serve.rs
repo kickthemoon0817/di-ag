@@ -168,27 +168,28 @@ fn handle_request(mut request: tiny_http::Request) {
     }
 }
 
-fn icon_description(name: &str) -> &'static str {
-    match name {
-        "user" => "Person / actor / human user",
-        "database" => "SQL or NoSQL database",
-        "server" => "Physical or virtual server / rack",
-        "cloud" => "Cloud service / SaaS",
-        "api" => "API endpoint / service interface",
-        "web" => "Web browser / web app",
-        "mobile" => "Mobile phone / native app",
-        "cache" => "In-memory cache (Redis, Memcached)",
-        "queue" => "Message queue / job queue",
-        "auth" => "Authentication service",
-        "lock" => "Security / access control (alias of auth)",
-        "storage" => "Block storage / object storage",
-        "gear" => "Configuration / settings / service",
-        "settings" => "Configuration (alias of gear)",
-        "file" => "Document / file",
-        "chart" => "Analytics / reporting",
-        "mail" => "Email / notification service",
-        _ => "",
+/// Upper limits on IR supplied to /api/render to prevent resource-exhaustion
+/// attacks via deeply-nested or enormously-wide documents.
+const MAX_NODES: usize = 5_000;
+const MAX_DEPTH: usize = 32;
+
+/// Recursively count nodes and check nesting depth against the bounds above.
+fn validate_ir_bounds(doc: &di_ag_ir::Document) -> Result<(), String> {
+    fn walk(nodes: &[di_ag_ir::Node], depth: usize, count: &mut usize) -> Result<(), String> {
+        if depth > MAX_DEPTH {
+            return Err(format!("container nesting exceeds {} levels", MAX_DEPTH));
+        }
+        for n in nodes {
+            *count += 1;
+            if *count > MAX_NODES {
+                return Err(format!("node count exceeds {}", MAX_NODES));
+            }
+            walk(&n.children, depth + 1, count)?;
+        }
+        Ok(())
     }
+    let mut c = 0;
+    walk(&doc.nodes, 0, &mut c)
 }
 
 fn icons_json() -> String {
@@ -199,7 +200,7 @@ fn icons_json() -> String {
         .map(|&name| {
             serde_json::json!({
                 "name": name,
-                "description": icon_description(name),
+                "description": di_ag_render::icon_description(name).unwrap_or(""),
                 "svg": di_ag_render::icon_svg(name).unwrap_or(""),
             })
         })
@@ -210,6 +211,9 @@ fn icons_json() -> String {
 fn handle_render(req: &RenderRequest) -> Result<String, String> {
     // Resolve the pre-layout document and the DSL string to return.
     let (pre_layout_doc, dsl_out) = if let Some(ir_doc) = &req.ir {
+        // Reject documents whose node count or nesting depth exceeds the
+        // server-side bounds so the layout engine cannot be DOS'd.
+        validate_ir_bounds(ir_doc)?;
         // IR path: regenerate DSL from the pre-layout IR.
         let dsl = super::dsl_emit::emit(ir_doc);
         (ir_doc.clone(), dsl)

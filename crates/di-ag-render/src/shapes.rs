@@ -1,5 +1,7 @@
 use di_ag_ir::{Position, Shape, Size};
 
+use crate::svg::escape_xml;
+
 pub struct ShapeAttrs {
     pub fill: String,
     pub stroke: String,
@@ -7,27 +9,41 @@ pub struct ShapeAttrs {
 }
 
 pub fn render_shape(shape: &Shape, pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+    // Pre-escape user-controlled color strings once so every branch is safe.
+    let safe = SafeAttrs {
+        fill: escape_xml(&attrs.fill),
+        stroke: escape_xml(&attrs.stroke),
+        stroke_width: attrs.stroke_width,
+    };
     match shape {
-        Shape::Rect => render_rect(pos, size, attrs, 0.0),
-        Shape::RoundedRect => render_rect(pos, size, attrs, 8.0),
-        Shape::Diamond => render_diamond(pos, size, attrs),
-        Shape::Circle => render_circle(pos, size, attrs),
-        Shape::Ellipse => render_ellipse(pos, size, attrs),
-        Shape::Cylinder => render_cylinder(pos, size, attrs),
-        Shape::Parallelogram => render_parallelogram(pos, size, attrs),
-        Shape::Hexagon => render_hexagon(pos, size, attrs),
-        Shape::Triangle => render_triangle(pos, size, attrs),
+        Shape::Rect => render_rect(pos, size, &safe, 0.0),
+        Shape::RoundedRect => render_rect(pos, size, &safe, 8.0),
+        Shape::Diamond => render_diamond(pos, size, &safe),
+        Shape::Circle => render_circle(pos, size, &safe),
+        Shape::Ellipse => render_ellipse(pos, size, &safe),
+        Shape::Cylinder => render_cylinder(pos, size, &safe),
+        Shape::Parallelogram => render_parallelogram(pos, size, &safe),
+        Shape::Hexagon => render_hexagon(pos, size, &safe),
+        Shape::Triangle => render_triangle(pos, size, &safe),
     }
 }
 
-fn render_rect(pos: &Position, size: &Size, attrs: &ShapeAttrs, rx: f64) -> String {
+/// Same fields as `ShapeAttrs` but with `fill`/`stroke` already XML-escaped
+/// for direct interpolation into attribute values.
+struct SafeAttrs {
+    fill: String,
+    stroke: String,
+    stroke_width: f64,
+}
+
+fn render_rect(pos: &Position, size: &Size, attrs: &SafeAttrs, rx: f64) -> String {
     format!(
         r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{}" stroke="{}" stroke-width="{}"/>"#,
         pos.x, pos.y, size.width, size.height, rx, attrs.fill, attrs.stroke, attrs.stroke_width
     )
 }
 
-fn render_diamond(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_diamond(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let cx = pos.x + size.width / 2.0;
     let cy = pos.y + size.height / 2.0;
     let points = format!(
@@ -47,7 +63,7 @@ fn render_diamond(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
     )
 }
 
-fn render_circle(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_circle(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let r = size.width.min(size.height) / 2.0;
     let cx = pos.x + size.width / 2.0;
     let cy = pos.y + size.height / 2.0;
@@ -57,7 +73,7 @@ fn render_circle(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
     )
 }
 
-fn render_ellipse(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_ellipse(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let cx = pos.x + size.width / 2.0;
     let cy = pos.y + size.height / 2.0;
     format!(
@@ -72,7 +88,7 @@ fn render_ellipse(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
     )
 }
 
-fn render_cylinder(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_cylinder(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let ry = 10.0;
     let x = pos.x;
     let y1 = pos.y + ry;
@@ -110,7 +126,7 @@ fn render_cylinder(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
     )
 }
 
-fn render_parallelogram(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_parallelogram(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let skew = size.width * 0.15;
     let points = format!(
         "{},{} {},{} {},{} {},{}",
@@ -129,7 +145,7 @@ fn render_parallelogram(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> Stri
     )
 }
 
-fn render_hexagon(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_hexagon(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let inset = size.width * 0.2;
     let cy = pos.y + size.height / 2.0;
     let points = format!(
@@ -153,7 +169,7 @@ fn render_hexagon(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
     )
 }
 
-fn render_triangle(pos: &Position, size: &Size, attrs: &ShapeAttrs) -> String {
+fn render_triangle(pos: &Position, size: &Size, attrs: &SafeAttrs) -> String {
     let cx = pos.x + size.width / 2.0;
     let points = format!(
         "{},{} {},{} {},{}",

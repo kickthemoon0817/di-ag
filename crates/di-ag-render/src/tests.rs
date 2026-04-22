@@ -110,6 +110,37 @@ mod tests {
     }
 
     #[test]
+    fn icon_names_match_icons_table() {
+        use crate::icons::{icon_description, icon_svg, ICONS, ICON_NAMES};
+        assert_eq!(
+            ICON_NAMES.len(),
+            ICONS.len(),
+            "ICON_NAMES ({}) and ICONS ({}) have diverged",
+            ICON_NAMES.len(),
+            ICONS.len()
+        );
+        for name in ICON_NAMES {
+            assert!(
+                icon_svg(name).is_some(),
+                "ICON_NAMES has '{}' but icon_svg returns None",
+                name
+            );
+            assert!(
+                icon_description(name).is_some(),
+                "ICON_NAMES has '{}' but icon_description returns None",
+                name
+            );
+        }
+        for entry in ICONS {
+            assert!(
+                ICON_NAMES.contains(&entry.name),
+                "ICONS has '{}' but ICON_NAMES does not",
+                entry.name
+            );
+        }
+    }
+
+    #[test]
     fn test_render_custom_node_style() {
         let mut doc = Document::default();
         doc.nodes.push(Node {

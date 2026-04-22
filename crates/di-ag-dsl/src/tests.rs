@@ -221,6 +221,23 @@ repeat 3 as i {
     }
 
     #[test]
+    fn test_parse_node_icon() {
+        let input = r##"node x "X" { icon: "user" }"##;
+        let doc = parse(input).unwrap();
+        assert_eq!(doc.nodes[0].icon, Some("user".to_string()));
+    }
+
+    #[test]
+    fn test_parse_node_position() {
+        let input = r#"node x "X" { position: 100, 200 }"#;
+        let doc = parse(input).unwrap();
+        assert_eq!(
+            doc.nodes[0].position,
+            Some(Position { x: 100.0, y: 200.0 })
+        );
+    }
+
+    #[test]
     fn test_parse_repeat_with_braces() {
         let input = r#"
 repeat 2 as idx {

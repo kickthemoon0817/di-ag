@@ -5777,6 +5777,11 @@ class History {
   }
 
   _apply(ir) {
+    // Cancel any pending debounced sync so the user's undo isn't racing
+    // with an earlier in-flight render for the state we just reverted.
+    // Without this, a mid-debounce sync could overwrite `_lastSource` with
+    // 'user' from the setIR call below on a mis-ordered path.
+    this._sync.cancel();
     this._applying = true;
     try {
       this._store.setIR(ir);
@@ -5829,6 +5834,10 @@ function initApp() {
   var lastSvg        = '';
   var isRendering    = false;
   var lastInspection = null;
+  // PanZoom is constructed later in initApp; use a late-bound ref so the
+  // SyncEngine's onResult closure (defined above) can call setSvg() on every
+  // re-render without a TDZ error.
+  var panZoomRef     = { current: null };
 
   // ── IRStore + SyncEngine ─────────────────────────────────────────
 
@@ -5860,6 +5869,12 @@ function initApp() {
         var imported = document.importNode(svgEl, true);
         preview.textContent = '';
         preview.appendChild(imported);
+        // Tell PanZoom about the new SVG so wheel-zoom and background pan
+        // can transform it. Without this call _svg stays null and every
+        // PanZoom handler returns early.
+        if (panZoomRef.current) {
+          panZoomRef.current.setSvg(imported);
+        }
         updateSelectionHighlight();
       }
 
@@ -5912,6 +5927,11 @@ function initApp() {
   // ignored and do not themselves push onto the undo stack.
   store.subscribe(function (newIR) {
     if (store._lastSource === 'backend') return; // don't snapshot backend-canonical updates
+    // While an undo/redo apply is in flight, the store.setIR call inside
+    // History._apply uses default `user` source but must NOT create a new
+    // history entry. `history.push` already guards this, but checking here
+    // keeps the instrumentation (window.__pushLog) honest.
+    if (history._applying) return;
     history.push(newIR);
   });
 
@@ -6064,6 +6084,14 @@ function initApp() {
       }
     }
   });
+  panZoomRef.current = panZoom;
+  window.__panZoom   = panZoom;
+  // If the first render already injected an SVG before we got here, wire it up
+  // now so the very first pan/zoom gesture works.
+  var existingSvg = preview.querySelector('svg');
+  if (existingSvg) {
+    panZoom.setSvg(existingSvg);
+  }
 
 
   // ── 4. TemplateManager ──────────────────────────────────────────
